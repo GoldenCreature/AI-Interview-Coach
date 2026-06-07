@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections.Generic;
@@ -56,9 +56,37 @@ public class UnityAndGeminiV3: MonoBehaviour
     [SerializeField] private TextToSpeechManager googleServices;
     private Content[] chatHistory;
 
+    [Header("면접관 시스템 프롬프트")]
+    [TextArea(5, 10)]
+    public string systemPrompt = @"당신은 IT 기업의 신입 개발자 채용 면접관입니다.
+    [규칙]
+    1. 반드시 한국어로만 대화하세요.
+    2. 지원자가 답변하면 논리적 허점을 찾아 꼬리 질문을 1개만 하세요.
+    3. 친절하지 않고 엄격하고 진중한 어조를 유지하세요.
+    4. 한 번에 한 가지 질문만 하세요.
+    5. 첫 시작은 자기소개를 요청하세요.";
+
     void Start()
     {
-        chatHistory = new Content[] { };
+        Content systemContent = new Content
+        {
+            role = "user",
+            parts = new Part[]
+            {
+            new Part { text = systemPrompt }
+            }
+        };
+
+        Content systemAck = new Content
+        {
+            role = "model",
+            parts = new Part[]
+            {
+            new Part { text = "네, 면접관 역할을 시작하겠습니다." }
+            }
+        };
+
+        chatHistory = new Content[] { systemContent, systemAck };
     }
 
     // Functions for sending a new prompt, or a chat to Gemini
