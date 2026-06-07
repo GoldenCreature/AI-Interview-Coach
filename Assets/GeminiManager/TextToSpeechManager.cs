@@ -4,7 +4,7 @@ using UnityEngine;
 using GoogleTextToSpeech.Scripts.Data;
 using TMPro;
 using System;
-using ReadyPlayerAvatar = ReadyPlayerMe.Core;
+//using ReadyPlayerAvatar = ReadyPlayerMe.Core; »ç¿ë X
 
 namespace GoogleTextToSpeech.Scripts
 {
@@ -12,11 +12,11 @@ namespace GoogleTextToSpeech.Scripts
     {
         [SerializeField] private VoiceScriptableObject voice;
         [SerializeField] private TextToSpeech text_to_speech;
-        // [SerializeField] private AudioSource audioSource;
+        [SerializeField] private AudioSource audioSource;
 
         private Action<AudioClip> _audioClipReceived;
         private Action<BadRequestData> _errorReceived;
-        public ReadyPlayerAvatar.VoiceHandler voiceHandler; 
+        //public ReadyPlayerAvatar.VoiceHandler voiceHandler; 
 
         
         public void SendTextToGoogle(string _text)
@@ -34,12 +34,12 @@ namespace GoogleTextToSpeech.Scripts
 
         private void AudioClipReceived(AudioClip clip)
         {
-            // audioSource.Stop();
-            // audioSource.clip = clip;
-            // audioSource.Play();
-            voiceHandler.AudioSource.Stop();
-            voiceHandler.AudioSource.clip = clip;
-            voiceHandler.AudioSource.Play();
+            audioSource.Stop();
+            audioSource.clip = clip;
+            audioSource.Play();
+            //voiceHandler.AudioSource.Stop();
+            //voiceHandler.AudioSource.clip = clip;
+            //voiceHandler.AudioSource.Play();
         }
     }
 }
