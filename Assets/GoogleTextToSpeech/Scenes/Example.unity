@@ -1101,6 +1101,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 0}
     - target: {fileID: 6015506993103287062, guid: a66bfde88dbe0e846b45bc643b3e6124, type: 3}
+      propertyPath: selectedJob
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6015506993103287062, guid: a66bfde88dbe0e846b45bc643b3e6124, type: 3}
       propertyPath: googleServices
       value: 
       objectReference: {fileID: 449467271}

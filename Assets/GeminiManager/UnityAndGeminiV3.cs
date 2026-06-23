@@ -2,7 +2,6 @@
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System;
 using GoogleTextToSpeech.Scripts.Data;
 using GoogleTextToSpeech.Scripts;
@@ -56,6 +55,17 @@ public class Part
     public string text;
 }
 
+// 면접 직종 선택용 열거형
+// Inspector에서 드롭다운으로 자동 표시됨
+// 나중에 UI 버튼 방식으로 전환할 때도 이 enum을 그대로 활용 가능
+public enum JobCategory
+{
+    IT개발자,
+    마케팅,
+    디자인,
+    영업,
+    금융
+}
 
 public class UnityAndGeminiV3 : MonoBehaviour
 {
@@ -68,7 +78,6 @@ public class UnityAndGeminiV3 : MonoBehaviour
     // 모델을 바꾸고 싶으면 URL 안의 모델명 부분만 수정하면 됨
     private string apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
-
     [Header("연결된 컴포넌트")]
     // TTS 기능을 담당하는 스크립트
     // Inspector에서 GoogleServices 오브젝트를 드래그해서 연결
@@ -79,21 +88,17 @@ public class UnityAndGeminiV3 : MonoBehaviour
     // 매번 API 요청 시 이 배열 전체를 같이 보내야 함
     private Content[] chatHistory;
 
-
-    // 임시 면접관 프롬프트 - 추후 직종별 프롬프트로 교체 예정
-    [Header("면접관 시스템 프롬프트 (임시)")]
-    [TextArea(5, 10)]
-    public string systemPrompt = @"당신은 IT 기업의 신입 개발자 채용 면접관입니다.
-    [규칙]
-    1. 반드시 한국어로만 대화하세요.
-    2. 지원자가 답변하면 논리적 허점을 찾아 꼬리 질문을 1개만 하세요.
-    3. 친절하지 않고 엄격하고 진중한 어조를 유지하세요.
-    4. 한 번에 한 가지 질문만 하세요.
-    5. 첫 시작은 자기소개를 요청하세요.";
-
+    [Header("면접 직종 선택")]
+    // Inspector에서 드롭다운으로 직종 선택
+    // 선택된 직종에 맞는 프롬프트가 Start()에서 자동 주입됨
+    // 나중에 UI 버튼으로 교체 예정
+    public JobCategory selectedJob = JobCategory.IT개발자;
 
     void Start()
     {
+        // 선택된 직종에 맞는 프롬프트 가져오기
+        string prompt = GetPromptByJob(selectedJob);
+
         // 게임 시작 시 면접관 역할을 AI에게 사전 주입
         // Gemini는 시스템 프롬프트를 직접 지원하지 않기 때문에
         // 가짜 대화 한 턴을 미리 만들어서 chatHistory에 넣는 방식으로 처리
@@ -105,7 +110,7 @@ public class UnityAndGeminiV3 : MonoBehaviour
             role = "user",
             parts = new Part[]
             {
-                new Part { text = systemPrompt }
+                new Part { text = prompt }
             }
         };
 
@@ -121,8 +126,82 @@ public class UnityAndGeminiV3 : MonoBehaviour
 
         // 위 두 가짜 대화를 대화 기록의 시작점으로 설정
         chatHistory = new Content[] { systemContent, systemAck };
+
+        Debug.Log($"면접 직종 설정 완료: {selectedJob}");
     }
 
+    // 선택된 직종에 맞는 프롬프트를 반환하는 함수
+    // 직종별로 면접관 페르소나와 평가 기준이 다르게 설정됨
+    // 나중에 프롬프트 내용을 더 구체화하거나 직종을 추가할 때 이 함수만 수정하면 됨
+    private string GetPromptByJob(JobCategory job)
+    {
+        switch (job)
+        {
+            case JobCategory.IT개발자:
+                return @"당신은 IT 기업의 신입 개발자 채용 면접관입니다.
+[규칙]
+1. 반드시 한국어로만 대화하세요.
+2. 지원자가 답변하면 논리적 허점을 찾아 꼬리 질문을 1개만 하세요.
+3. 친절하지 않고 엄격하고 진중한 어조를 유지하세요.
+4. 한 번에 한 가지 질문만 하세요.
+5. 첫 시작은 자기소개를 요청하세요.
+6. 지원자가 같은 질문에 3번 이상 명확한 답변을 못하면 다음 질문으로 넘어가세요.";
+
+            case JobCategory.마케팅:
+                return @"당신은 대기업 마케팅 부서의 신입 채용 면접관입니다.
+[규칙]
+1. 반드시 한국어로만 대화하세요.
+2. 지원자의 창의성과 트렌드 감각을 평가하는 질문을 하세요.
+3. 지원자가 답변하면 구체적인 사례나 근거를 요구하는 꼬리 질문을 1개만 하세요.
+4. 친절하지 않고 엄격하고 진중한 어조를 유지하세요.
+5. 한 번에 한 가지 질문만 하세요.
+6. 첫 시작은 자기소개를 요청하세요.
+7. 지원자가 같은 질문에 3번 이상 명확한 답변을 못하면 다음 질문으로 넘어가세요.";
+
+            case JobCategory.디자인:
+                return @"당신은 디자인 회사의 신입 디자이너 채용 면접관입니다.
+[규칙]
+1. 반드시 한국어로만 대화하세요.
+2. 지원자의 디자인 철학과 감각을 평가하는 질문을 하세요.
+3. 지원자가 답변하면 포트폴리오나 구체적인 작업 경험을 묻는 꼬리 질문을 1개만 하세요.
+4. 친절하지 않고 엄격하고 진중한 어조를 유지하세요.
+5. 한 번에 한 가지 질문만 하세요.
+6. 첫 시작은 자기소개를 요청하세요.
+7. 지원자가 같은 질문에 3번 이상 명확한 답변을 못하면 다음 질문으로 넘어가세요.";
+
+            case JobCategory.영업:
+                return @"당신은 영업 회사의 신입 영업직 채용 면접관입니다.
+[규칙]
+1. 반드시 한국어로만 대화하세요.
+2. 지원자의 커뮤니케이션 능력과 목표 달성 의지를 평가하는 질문을 하세요.
+3. 지원자가 답변하면 실제 상황에서 어떻게 행동할지 묻는 꼬리 질문을 1개만 하세요.
+4. 친절하지 않고 엄격하고 진중한 어조를 유지하세요.
+5. 한 번에 한 가지 질문만 하세요.
+6. 첫 시작은 자기소개를 요청하세요.
+7. 지원자가 같은 질문에 3번 이상 명확한 답변을 못하면 다음 질문으로 넘어가세요.";
+
+            case JobCategory.금융:
+                return @"당신은 금융권 신입 채용 면접관입니다.
+[규칙]
+1. 반드시 한국어로만 대화하세요.
+2. 지원자의 수리 능력과 금융 지식, 윤리 의식을 평가하는 질문을 하세요.
+3. 지원자가 답변하면 논리적 근거를 요구하는 꼬리 질문을 1개만 하세요.
+4. 친절하지 않고 엄격하고 진중한 어조를 유지하세요.
+5. 한 번에 한 가지 질문만 하세요.
+6. 첫 시작은 자기소개를 요청하세요.
+7. 지원자가 같은 질문에 3번 이상 명확한 답변을 못하면 다음 질문으로 넘어가세요.";
+
+            default:
+                return @"당신은 신입 채용 면접관입니다.
+[규칙]
+1. 반드시 한국어로만 대화하세요.
+2. 지원자가 답변하면 꼬리 질문을 1개만 하세요.
+3. 엄격하고 진중한 어조를 유지하세요.
+4. 한 번에 한 가지 질문만 하세요.
+5. 첫 시작은 자기소개를 요청하세요.
+6. 지원자가 같은 질문에 3번 이상 명확한 답변을 못하면 다음 질문으로 넘어가세요.";
+        }
+    }
 
     // 단순 프롬프트 전송 함수 (대화 기록 없이 단발성 질문)
     // 현재는 사용하지 않음. 나중에 필요할 때를 대비해 남겨둠
@@ -130,7 +209,6 @@ public class UnityAndGeminiV3 : MonoBehaviour
     {
         string url = $"{apiEndpoint}?key={apiKey}";
 
-        // 단순 JSON 형태로 텍스트만 전송
         string jsonData = "{\"contents\": [{\"parts\": [{\"text\": \"{" + promptText + "}\"}]}]}";
 
         byte[] jsonToSend = new System.Text.UTF8Encoding().GetBytes(jsonData);
@@ -164,14 +242,12 @@ public class UnityAndGeminiV3 : MonoBehaviour
         }
     }
 
-
     // 외부에서 호출하는 채팅 전송 함수
     // 버튼 클릭 또는 STT 결과를 받아서 이 함수를 호출하면 됨
     public void SendChat(string userMessage)
     {
         StartCoroutine(SendChatRequestToGemini(userMessage));
     }
-
 
     // 실제 대화 기록을 포함해서 Gemini에 요청하는 핵심 함수
     private IEnumerator SendChatRequestToGemini(string newMessage)
