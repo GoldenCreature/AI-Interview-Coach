@@ -626,6 +626,10 @@ PrefabInstance:
       propertyPath: geminiManager
       value: 
       objectReference: {fileID: 1682303563}
+    - target: {fileID: 5451673311877118035, guid: 417c5af75b21ef24ca6f33c7590f00c8, type: 3}
+      propertyPath: fillerDetector
+      value: 
+      objectReference: {fileID: 449467273}
     - target: {fileID: 6080031855515323296, guid: 417c5af75b21ef24ca6f33c7590f00c8, type: 3}
       propertyPath: m_Name
       value: GoogleServices
@@ -633,19 +637,55 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6080031855515323296, guid: 417c5af75b21ef24ca6f33c7590f00c8, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 449467273}
   m_SourcePrefab: {fileID: 100100000, guid: 417c5af75b21ef24ca6f33c7590f00c8, type: 3}
 --- !u!114 &449467271 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 946573997864022982, guid: 417c5af75b21ef24ca6f33c7590f00c8, type: 3}
   m_PrefabInstance: {fileID: 449467270}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 449467272}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 679e39cccf0e6de449b66be6d2baa608, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &449467272 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6080031855515323296, guid: 417c5af75b21ef24ca6f33c7590f00c8, type: 3}
+  m_PrefabInstance: {fileID: 449467270}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &449467273
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 449467272}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1fe8070f803709048b60dea87546646b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  fillerWords:
+  - "\uC5B4"
+  - "\uC74C"
+  - "\uC544"
+  - "\uC774\uC81C"
+  - "\uADF8\uAC8C"
+  - "\uADF8\uB7EC\uB2C8\uAE4C"
+  - "\uC0AC\uC2E4"
+  - "\uBB50"
+  - "\uC880"
+  - "\uC77C\uB2E8"
+  - "\uC57D\uAC04"
+  - "\uADF8\uB0E5"
+  - "\uC9C4\uC9DC"
+  - "\uC194\uC9C1\uD788"
+  - "\uC5B4\uB5BB\uAC8C \uBCF4\uBA74"
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -1104,6 +1144,10 @@ PrefabInstance:
       propertyPath: selectedJob
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6015506993103287062, guid: a66bfde88dbe0e846b45bc643b3e6124, type: 3}
+      propertyPath: fillerDetector
+      value: 
+      objectReference: {fileID: 449467273}
     - target: {fileID: 6015506993103287062, guid: a66bfde88dbe0e846b45bc643b3e6124, type: 3}
       propertyPath: googleServices
       value: 
