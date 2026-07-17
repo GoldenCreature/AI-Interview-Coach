@@ -1,3 +1,5 @@
+<img width="1408" height="768" alt="AI-Interview-Coach" src="https://github.com/user-attachments/assets/d73c72c3-7516-4d09-8c04-c3e453f456aa" />
+
 # 🎙️ AI 기반 면접 코칭 시스템
 
 > Unity Windows Standalone 기반 AI 면접 코칭 애플리케이션  
