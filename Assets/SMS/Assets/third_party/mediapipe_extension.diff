@@ -1,0 +1,96 @@
+diff --git a/mediapipe/gpu/gl_context_webgl.cc b/mediapipe/gpu/gl_context_webgl.cc
+index 93324fe2..27a1ab9a 100644
+--- a/mediapipe/gpu/gl_context_webgl.cc
++++ b/mediapipe/gpu/gl_context_webgl.cc
+@@ -52,6 +52,10 @@ absl::Status GlContext::CreateContextInternal(
+     EMSCRIPTEN_WEBGL_CONTEXT_HANDLE external_context, int webgl_version) {
+   ABSL_CHECK(webgl_version == 1 || webgl_version == 2);
+ 
++  if (external_context != 0) {
++    LOG(WARNING) << "external context is not supported, so it may not work correctly";
++  }
++
+   EmscriptenWebGLContextAttributes attrs;
+   emscripten_webgl_init_context_attributes(&attrs);
+   attrs.explicitSwapControl = 0;
+diff --git a/mediapipe/gpu/gl_scaler_calculator.cc b/mediapipe/gpu/gl_scaler_calculator.cc
+index 8288496b..7ebc54fc 100644
+--- a/mediapipe/gpu/gl_scaler_calculator.cc
++++ b/mediapipe/gpu/gl_scaler_calculator.cc
+@@ -12,6 +12,7 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
++// Modified to enable to specify the target GpuBuffer
+ #include "absl/status/statusor.h"
+ #include "mediapipe/framework/calculator_framework.h"
+ #include "mediapipe/framework/formats/image.h"
+@@ -72,6 +73,7 @@ using Image = mediapipe::Image;
+ //   existing calculator options, depending on field merge_fields.
+ //   OUTPUT_DIMENSIONS: the output width and height in pixels.
+ //   ROTATION: the counterclockwise rotation angle in degrees.
++//   DESTINATION: the target GpuBuffer
+ // These can also be specified as options.
+ // To enable horizontal or vertical flip, specify them in options.
+ // The flipping is applied after rotation.
+@@ -102,6 +104,7 @@ class GlScalerCalculator : public CalculatorBase {
+   absl::StatusOr<GpuBuffer> GetInputGpuBuffer(CalculatorContext* cc);
+ 
+   GlCalculatorHelper helper_;
++  GpuBuffer dst_buffer_;
+   int dst_width_ = 0;
+   int dst_height_ = 0;
+   float dst_scale_ = -1.f;
+@@ -140,6 +143,9 @@ absl::Status GlScalerCalculator::GetContract(CalculatorContract* cc) {
+   }
+   MP_RETURN_IF_ERROR(GlCalculatorHelper::UpdateContract(cc));
+ 
++  if (cc->InputSidePackets().HasTag("DESTINATION")) {
++    cc->InputSidePackets().Tag("DESTINATION").Set<GpuBuffer>();
++  }
+   if (cc->InputSidePackets().HasTag(kOptionsTag)) {
+     cc->InputSidePackets().Tag(kOptionsTag).Set<GlScalerCalculatorOptions>();
+   }
+@@ -208,6 +214,11 @@ absl::Status GlScalerCalculator::Open(CalculatorContext* cc) {
+     dst_width_ = dimensions[0];
+     dst_height_ = dimensions[1];
+   }
++  if (HasTagOrIndex(cc->InputSidePackets(), "DESTINATION", 1)) {
++    dst_buffer_ = cc->InputSidePackets().Tag("DESTINATION").Get<GpuBuffer>();
++    dst_width_ = dst_buffer_.width();
++    dst_height_ = dst_buffer_.height();
++  }
+   if (cc->InputSidePackets().HasTag(kRotationTag)) {
+     rotation_ccw = cc->InputSidePackets().Tag(kRotationTag).Get<int>();
+   }
+@@ -230,7 +241,7 @@ absl::StatusOr<GpuBuffer> GlScalerCalculator::GetInputGpuBuffer(
+ }
+ 
+ absl::Status GlScalerCalculator::Process(CalculatorContext* cc) {
+-  if (cc->Inputs().HasTag(kOutputDimensionsTag)) {
++  if (!dst_buffer_ && cc->Inputs().HasTag(kOutputDimensionsTag)) {
+     if (cc->Inputs().Tag(kOutputDimensionsTag).IsEmpty()) {
+       // OUTPUT_DIMENSIONS input stream is specified, but value is missing.
+       return absl::OkStatus();
+@@ -309,9 +320,18 @@ absl::Status GlScalerCalculator::Process(CalculatorContext* cc) {
+               MakePacket<float>(left_right_padding).At(cc->InputTimestamp()));
+     }
+ 
+-    auto dst = helper_.CreateDestinationTexture(
+-        dst_width, dst_height, GetOutputFormat(input.format()));
+-
++    GlTexture dst;
++#if MEDIAPIPE_GPU_BUFFER_USE_CV_PIXEL_BUFFER
++    // for iOS
++    dst = helper_.CreateDestinationTexture(dst_width, dst_height, GetOutputFormat(input.format()));
++#else
++    if (dst_buffer_) {
++      dst_buffer_.internal_storage<mediapipe::GlTextureBuffer>()->Reuse();
++      dst = helper_.CreateDestinationTexture(dst_buffer_);
++    } else {
++      dst = helper_.CreateDestinationTexture(dst_width, dst_height, GetOutputFormat(input.format()));
++    }
++#endif
+     helper_.BindFramebuffer(dst);
+ 
+     if (scale_mode_ == FrameScaleMode::kFit) {
