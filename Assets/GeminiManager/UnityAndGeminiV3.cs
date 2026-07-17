@@ -1,10 +1,11 @@
-﻿using System.Collections;
+﻿using GoogleTextToSpeech.Scripts;
+using GoogleTextToSpeech.Scripts.Data;
+using HJS;
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
-using System.Collections.Generic;
-using System;
-using GoogleTextToSpeech.Scripts.Data;
-using GoogleTextToSpeech.Scripts;
 
 // Gemini API 키를 담는 데이터 구조
 // 현재는 직접 사용하지 않지만 나중에 키를 JSON으로 관리할 때 쓸 수 있음
@@ -86,13 +87,18 @@ public class UnityAndGeminiV3 : MonoBehaviour
     // 지금까지 나눈 대화 전체를 저장하는 배열
     // Gemini는 대화 맥락을 기억 못하기 때문에
     // 매번 API 요청 시 이 배열 전체를 같이 보내야 함
-    private Content[] chatHistory;
+    // public이라 외부에서 대화기록 접근 가능
+    public Content[] chatHistory;
 
     [Header("면접 직종 선택")]
     // Inspector에서 드롭다운으로 직종 선택
     // 선택된 직종에 맞는 프롬프트가 Start()에서 자동 주입됨
     // 나중에 UI 버튼으로 교체 예정
     public JobCategory selectedJob = JobCategory.IT개발자;
+
+    [Header("말버릇 감지기 연결")]
+    // Inspector에서 GoogleServices 프리팹의 FillerWordDetector를 드래그 연결
+    public FillerWordDetector fillerDetector;
 
     void Start()
     {
@@ -318,6 +324,100 @@ public class UnityAndGeminiV3 : MonoBehaviour
                 else
                 {
                     Debug.Log("응답 텍스트 없음.");
+                }
+            }
+        }
+    }
+
+    // 면접 종료 버튼에 연결할 함수
+    // 전체 대화 기록 + 말버릇 카운트를 Gemini에 보내서 종합 평가 요청
+    public void EndInterview()
+    {
+        StartCoroutine(SendEvaluationRequest());
+    }
+
+    private IEnumerator SendEvaluationRequest()
+    {
+        string url = $"{apiEndpoint}?key={apiKey}";
+
+        // 말버릇 카운트 텍스트 만들기
+        string fillerSummary = "없음";
+        if (fillerDetector != null)
+        {
+            var counts = fillerDetector.GetFillerCount();
+            if (counts.Count > 0)
+            {
+                fillerSummary = "";
+                foreach (var pair in counts)
+                {
+                    fillerSummary += $"'{pair.Key}' {pair.Value}회, ";
+                }
+                // 마지막 ", " 제거
+                fillerSummary = fillerSummary.TrimEnd(',', ' ');
+            }
+        }
+
+        // Gemini에게 보낼 종합 평가 요청 메시지
+        string evaluationPrompt =
+            $"지금까지의 면접이 모두 끝났습니다.\n" +
+            $"아래 기준으로 지원자를 종합 평가해주세요.\n\n" +
+            $"[말버릇 감지 결과]\n{fillerSummary}\n\n" +
+            $"[평가 항목]\n" +
+            $"1. 답변 내용의 충실도 (30점)\n" +
+            $"2. 논리적 구성력 (30점)\n" +
+            $"3. 의사소통 능력 (20점)\n" +
+            $"4. 말버릇 및 화법 (20점)\n\n" +
+            $"[출력 형식]\n" +
+            $"총점: XX점\n" +
+            $"항목별 점수: 각 항목 점수 요약\n" +
+            $"강점: (2~3가지)\n" +
+            $"개선점: (2~3가지)\n" +
+            $"한 줄 총평: (한 문장 요약)";
+
+        Content evaluationRequest = new Content
+        {
+            role = "user",
+            parts = new Part[]
+            {
+                new Part { text = evaluationPrompt }
+            }
+        };
+
+        // 기존 대화 기록에 평가 요청 추가
+        List<Content> contentsList = new List<Content>(chatHistory);
+        contentsList.Add(evaluationRequest);
+
+        ChatRequest chatRequest = new ChatRequest { contents = contentsList.ToArray() };
+        string jsonData = JsonUtility.ToJson(chatRequest);
+        byte[] jsonToSend = new System.Text.UTF8Encoding().GetBytes(jsonData);
+
+        using (UnityWebRequest www = new UnityWebRequest(url, "POST"))
+        {
+            www.uploadHandler = new UploadHandlerRaw(jsonToSend);
+            www.downloadHandler = new DownloadHandlerBuffer();
+            www.SetRequestHeader("Content-Type", "application/json");
+
+            yield return www.SendWebRequest();
+
+            if (www.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogError("종합 평가 요청 실패: " + www.error);
+            }
+            else
+            {
+                Response response = JsonUtility.FromJson<Response>(www.downloadHandler.text);
+
+                if (response.candidates.Length > 0 && response.candidates[0].content.parts.Length > 0)
+                {
+                    string evaluationResult = response.candidates[0].content.parts[0].text;
+                    Debug.Log("=== 종합 평가 결과 ===\n" + evaluationResult);
+
+                    // TODO: 나중에 결과 화면 UI로 전달하는 코드 여기에 추가
+                    // 예: UIManager.Instance.ShowResult(evaluationResult);
+                }
+                else
+                {
+                    Debug.Log("종합 평가 응답 텍스트 없음.");
                 }
             }
         }
