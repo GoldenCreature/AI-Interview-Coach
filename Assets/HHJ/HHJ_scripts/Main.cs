@@ -3,22 +3,25 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement; 
 
-public class Main : MonoBehaviour
+namespace MainUI.Scripts
 {
-  public void PlayBtn()
+    public class Main : MonoBehaviour
     {
-        SceneManager.LoadScene("Loading"); 
-    }
- public void SettingBtn()
-    {
-        SceneManager.LoadScene("Setting");
-    }
-    public void ExitBtn()
-    {
-        Application.Quit();
-    }
-    public void FeedbackBtn()
-    {
-        SceneManager.LoadScene("FeedBack");
+        public void PlayBtn()
+        {
+            SceneManager.LoadScene("Interviewer");
+        }
+        public void SettingBtn()
+        {
+            SceneManager.LoadScene("Setting");
+        }
+        public void ExitBtn()
+        {
+            Application.Quit();
+        }
+        public void FeedbackBtn()
+        {
+            SceneManager.LoadScene("FeedBack");
+        }
     }
 }
