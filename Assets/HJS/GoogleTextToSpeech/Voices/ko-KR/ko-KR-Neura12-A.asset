@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4e09be29deb2cb4b83ad7880b54783f, type: 3}
+  m_Script: {fileID: 11500000, guid: 99ccaca9d89b9ad4ea358a8e9216c8fa, type: 3}
   m_Name: ko-KR-Neura12-A
   m_EditorClassIdentifier: 
   languageCode: ko-KR

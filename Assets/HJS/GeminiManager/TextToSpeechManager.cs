@@ -1,10 +1,10 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using GoogleTextToSpeech.Scripts.Data;
 using TMPro;
 using System;
-//using ReadyPlayerAvatar = ReadyPlayerMe.Core; »ç¿ë X
+//using ReadyPlayerAvatar = ReadyPlayerMe.Core; ì‚¬ìš© X
 
 namespace GoogleTextToSpeech.Scripts
 {
