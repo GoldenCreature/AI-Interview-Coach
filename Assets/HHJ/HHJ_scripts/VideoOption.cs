@@ -94,6 +94,11 @@ namespace OptionUI.Scripts
         {
             SceneManager.LoadScene("Main");
         }
+        public void PlayBtn()
+        {
+            SceneManager.LoadScene("Play");
+        }
+
         public void ExitBtn()
         {
             Application.Quit();

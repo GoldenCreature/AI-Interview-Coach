@@ -11,6 +11,7 @@ namespace PlayUI.Scripts
     {
         [SerializeField] TextMeshProUGUI timerText;
         float elapsedTime;
+        private bool isTimerRunning = true;
 
         public void ResultBtn()
         {
@@ -19,10 +20,20 @@ namespace PlayUI.Scripts
 
         private void Update()
         {
-           elapsedTime += Time.deltaTime;
+            if (!isTimerRunning) return;
+
+            elapsedTime += Time.deltaTime;
             int minutus = Mathf.FloorToInt(elapsedTime / 60);
             int seconds = Mathf.FloorToInt(elapsedTime % 60);
             timerText.text = string.Format("{0:00}:{1:00}",minutus,seconds);
+        }
+        public void PauseTimer()
+        {
+            isTimerRunning = false;
+        }
+        public void ResumeTimer()
+        {
+            isTimerRunning = true;
         }
     }
 }
