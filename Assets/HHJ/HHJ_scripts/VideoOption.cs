@@ -5,95 +5,103 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 
-public class VideoOption : MonoBehaviour
+namespace OptionUI.Scripts
 {
-    FullScreenMode screenMode;
-    public TMP_Dropdown resolutionDropdown; 
-    List<Resolution> resolutions = new List<Resolution>();
-    public int resolutionNum;
-    public Toggle fullscreenBtn;
-
-    void Start()
+    public class VideoOption : MonoBehaviour
     {
-        screenMode = Screen.fullScreenMode;
-        InitUI();
-    }
+        FullScreenMode screenMode;
+        public TMP_Dropdown resolutionDropdown;
+        List<Resolution> resolutions = new List<Resolution>();
+        public int resolutionNum;
+        public Toggle fullscreenBtn;
 
-    void InitUI()
-    {
-        resolutions.Clear(); 
-
-        for (int i = 0; i < Screen.resolutions.Length; i++)
+        void Start()
         {
-            Resolution currentRes = Screen.resolutions[i];
+            screenMode = Screen.fullScreenMode;
+            InitUI();
+        }
 
-            if (currentRes.refreshRateRatio.value >= 59.0 && currentRes.refreshRateRatio.value <= 61.0)
+        void InitUI()
+        {
+            resolutions.Clear();
+
+            for (int i = 0; i < Screen.resolutions.Length; i++)
             {
+                Resolution currentRes = Screen.resolutions[i];
 
-                bool isDuplicate = false;
-                foreach (Resolution r in resolutions)
+                if (currentRes.refreshRateRatio.value >= 59.0 && currentRes.refreshRateRatio.value <= 61.0)
                 {
-                    if (r.width == currentRes.width && r.height == currentRes.height)
+
+                    bool isDuplicate = false;
+                    foreach (Resolution r in resolutions)
                     {
-                        isDuplicate = true;
-                        break;
+                        if (r.width == currentRes.width && r.height == currentRes.height)
+                        {
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+
+                    if (!isDuplicate)
+                    {
+                        resolutions.Add(currentRes);
                     }
                 }
-
-                if (!isDuplicate)
-                {
-                    resolutions.Add(currentRes);
-                }
             }
-        }
 
 
-        resolutionDropdown.options.Clear();
+            resolutionDropdown.options.Clear();
 
-        int optionNum = 0;
-        foreach (Resolution item in resolutions)
-        {
-
-            TMP_Dropdown.OptionData option = new TMP_Dropdown.OptionData();
-            option.text = item.width + " X " + item.height; 
-            resolutionDropdown.options.Add(option);
-
-            if (item.width == Screen.width && item.height == Screen.height)
+            int optionNum = 0;
+            foreach (Resolution item in resolutions)
             {
-                resolutionDropdown.value = optionNum;
+
+                TMP_Dropdown.OptionData option = new TMP_Dropdown.OptionData();
+                option.text = item.width + " X " + item.height;
+                resolutionDropdown.options.Add(option);
+
+                if (item.width == Screen.width && item.height == Screen.height)
+                {
+                    resolutionDropdown.value = optionNum;
+                }
+                optionNum++;
             }
-            optionNum++;
+
+            resolutionDropdown.RefreshShownValue();
+
+            fullscreenBtn.isOn = Screen.fullScreenMode.Equals(FullScreenMode.FullScreenWindow) ? true : false;
         }
 
-        resolutionDropdown.RefreshShownValue();
-
-        fullscreenBtn.isOn = Screen.fullScreenMode.Equals(FullScreenMode.FullScreenWindow) ? true : false;
-    }
-
-    public void FullScreenBtn(bool isfull)
-    {
-        screenMode = isfull ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
-    }
-
-    public void DropboxOptionChange(int x)
-    {
-        resolutionNum = x;
-    }
-
-    public void OkBtnClick()
-    {
-        if (resolutions.Count > 0 && resolutionNum < resolutions.Count)
+        public void FullScreenBtn(bool isfull)
         {
-            Screen.SetResolution(resolutions[resolutionNum].width, resolutions[resolutionNum].height, screenMode);
+            screenMode = isfull ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
         }
-    }
 
-    public void MainBtn()
-    {
-        SceneManager.LoadScene("Main");
-    }
-    public void ExitBtn()
-    {
-        Application.Quit();
+        public void DropboxOptionChange(int x)
+        {
+            resolutionNum = x;
+        }
+
+        public void OkBtnClick()
+        {
+            if (resolutions.Count > 0 && resolutionNum < resolutions.Count)
+            {
+                Screen.SetResolution(resolutions[resolutionNum].width, resolutions[resolutionNum].height, screenMode);
+            }
+        }
+
+        public void MainBtn()
+        {
+            SceneManager.LoadScene("Main");
+        }
+        public void PlayBtn()
+        {
+            SceneManager.LoadScene("Play");
+        }
+
+        public void ExitBtn()
+        {
+            Application.Quit();
+        }
     }
 }

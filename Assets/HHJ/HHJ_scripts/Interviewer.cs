@@ -3,14 +3,17 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class Interviewer : MonoBehaviour
+namespace InterViewUI.Scripts
 {
-    public void MainBtn()
+    public class Interviewer : MonoBehaviour
     {
-        SceneManager.LoadScene("Main");
-    }
-    public void PlayBtn()
-    {
-        SceneManager.LoadScene("Loading1");
+        public void MainBtn()
+        {
+            SceneManager.LoadScene("Main");
+        }
+        public void PlayBtn()
+        {
+            SceneManager.LoadScene("Loading1");
+        }
     }
 }

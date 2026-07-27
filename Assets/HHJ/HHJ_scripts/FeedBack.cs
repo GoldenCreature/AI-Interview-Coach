@@ -3,10 +3,17 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class FeedBack : MonoBehaviour
+namespace FeedBackUI.Scripts
 {
-    public void ResultBtn()
+    public class FeedBack : MonoBehaviour
     {
-        SceneManager.LoadScene("Result");
+        public void ResultBtn()
+        {
+            SceneManager.LoadScene("Result");
+        }
+        public void MainBtn()
+        {
+            SceneManager.LoadScene("Main");
+        }
     }
 }
