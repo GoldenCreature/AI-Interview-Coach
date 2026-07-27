@@ -48,6 +48,7 @@ namespace HJS
         protected override void Awake()
         {
             base.Awake();
+            chatHistory = new Content[0]; // 빈 배열로 초기화
             Debug.Log("[GeminiManager] 초기화 완료");
         }
 
