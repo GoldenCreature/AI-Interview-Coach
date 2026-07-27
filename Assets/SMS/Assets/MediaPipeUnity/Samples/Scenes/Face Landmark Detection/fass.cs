@@ -9,6 +9,10 @@ public class fass : MonoBehaviour
     [Tooltip("유니티 인스펙터 창에서 CustomPathCSVLogger 오브젝트를 여기에 드래그 앤 드롭 하세요.")]
     public CustomPathCSVLogger csvLogger;
 
+    [Header("DB Logger 연결")]
+    [Tooltip("유니티 인스펙터 창에서 FaceScoreDBLogger 오브젝트를 여기에 드래그 앤 드롭 하세요.")]
+    public FaceScoreDBLogger dbLogger;
+
     [Header("MediaPipe Runner 연결")]
     [Tooltip("씬에 있는 FaceLandmarkerRunner 오브젝트를 여기에 드래그하세요.")]
     public FaceLandmarkerRunner runner;
@@ -46,9 +50,12 @@ public class fass : MonoBehaviour
         OnFaceLandmarksDetected(landmarksList);
     }
 
-    /// <summary>
-    /// 미디어파이프에서 얼굴 좌표를 받으면 호출되는 실시간 분석 메인 함수
-    /// </summary>
+    [Header("CSV 저장 간격")]
+    [Tooltip("CSV에 점수를 저장할 최소 간격(분 단위)")]
+    public float logIntervalMinutes = 3f;
+
+    private System.DateTime lastLoggedTime = System.DateTime.MinValue;
+
     public void OnFaceLandmarksDetected(List<Vector3> landmarks)
     {
         Debug.Log("[fass] 1단계 성공: 미디어파이프로부터 얼굴 좌표를 전달받았습니다!");
@@ -65,6 +72,14 @@ public class fass : MonoBehaviour
             return;
         }
 
+        // 3분 간격 체크: 아직 간격이 안 지났으면 계산/저장 자체를 스킵
+        System.DateTime now = System.DateTime.Now;
+        if ((now - lastLoggedTime).TotalMinutes < logIntervalMinutes)
+        {
+            return;
+        }
+        lastLoggedTime = now;
+
         float smileScore = CalculateSmile(landmarks);
         float surpriseScore = CalculateSurprise(landmarks);
         float angryScore = CalculateAngry(landmarks);
@@ -80,6 +95,16 @@ public class fass : MonoBehaviour
         {
             Debug.LogError("[fass] 에러: csvLogger 컴포넌트가 인스펙터에 연결되지 않았습니다.");
         }
+
+        if (dbLogger != null)
+        {
+            dbLogger.SaveScoreToDB(smileScore, surpriseScore, angryScore);
+            Debug.Log("[fass] 4단계 성공: DB Logger에 데이터 저장을 전송했습니다!");
+        }
+        else
+        {
+            Debug.LogError("[fass] 에러: dbLogger 컴포넌트가 인스펙터에 연결되지 않았습니다.");
+        }
     }
 
     private float CalculateSmile(List<Vector3> landmarks)
@@ -92,12 +117,19 @@ public class fass : MonoBehaviour
 
     private float CalculateSurprise(List<Vector3> landmarks)
     {
-       
+        // 눈 뜬 정도(절대 거리)
         float leftEyeOpen = Vector3.Distance(landmarks[159], landmarks[145]);
         float rightEyeOpen = Vector3.Distance(landmarks[386], landmarks[374]);
         float avgEyeOpen = (leftEyeOpen + rightEyeOpen) / 2f;
+
+        // [수정] 얼굴 너비로 정규화 -> 카메라 거리/얼굴 크기 영향을 줄여서
+        // SurpriseScore가 표정과 무관하게 100에 포화되는 문제를 완화
         float faceWidth = Vector3.Distance(landmarks[234], landmarks[454]);
         float ratio = avgEyeOpen / (faceWidth > 0 ? faceWidth : 1f);
+
+        // TODO: 아래 계수(1000f)는 실제 테스트 데이터를 보며 재조정 필요.
+        // 평상시 표정과 놀란 표정일 때의 ratio 값을 각각 Debug.Log로 확인한 뒤
+        // 그 사이 구간에 맞게 배율을 잡는 것을 권장.
         float score = ratio * 1000f;
         return Mathf.Clamp(score, 0f, 100f);
     }
