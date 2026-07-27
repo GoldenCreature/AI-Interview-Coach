@@ -709,6 +709,52 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
+--- !u!1 &265480888
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 265480890}
+  - component: {fileID: 265480889}
+  m_Layer: 0
+  m_Name: FaceScoreDB
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &265480889
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 265480888}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e59944e92cad61446867f304391b26b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  customFolderPath: 
+  dbFileName: FaceScores.db
+--- !u!4 &265480890
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 265480888}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -2600,7 +2646,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   csvLogger: {fileID: 1869177674}
+  dbLogger: {fileID: 265480889}
   runner: {fileID: 1865034298}
+  logIntervalMinutes: 3
 --- !u!1 &1389936514
 GameObject:
   m_ObjectHideFlags: 0
@@ -17347,3 +17395,4 @@ SceneRoots:
   - {fileID: 1297692048}
   - {fileID: 1869177675}
   - {fileID: 1865034299}
+  - {fileID: 265480890}
