@@ -550,7 +550,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6290240334105239368, guid: c63341782b727354e986c32a3c7e3e89, type: 3}
       propertyPath: apiKey
-      value: AIzaSyA59gENfcUxzHcr3qokEy_YEwEkmJAAqp4
+      value: 
       objectReference: {fileID: 0}
     - target: {fileID: 6290240334105239368, guid: c63341782b727354e986c32a3c7e3e89, type: 3}
       propertyPath: fillerDetector
@@ -984,7 +984,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1978424007404635399, guid: 727f73e2766561249a61936b3f1f25e3, type: 3}
       propertyPath: apiKey
-      value: AIzaSyAUoYUVlDgsctHHzMD1n-X3ftT-EPShxEY
+      value: 
       objectReference: {fileID: 0}
     - target: {fileID: 2292908672680247792, guid: 727f73e2766561249a61936b3f1f25e3, type: 3}
       propertyPath: m_Name
@@ -1184,7 +1184,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6566598603892313596, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
       propertyPath: apiKey
-      value: AIzaSyAUoYUVlDgsctHHzMD1n-X3ftT-EPShxEY
+      value: 
       objectReference: {fileID: 0}
     - target: {fileID: 6566598603892313596, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
       propertyPath: geminiManager
@@ -1348,6 +1348,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 581619193}
     m_Modifications:
+    - target: {fileID: 3881521507207092076, guid: 5a12503ec20052a4185298c9ae57c11a, type: 3}
+      propertyPath: selectedJob
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3881521507207092076, guid: 5a12503ec20052a4185298c9ae57c11a, type: 3}
+      propertyPath: selectedType
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5423401914327936602, guid: 5a12503ec20052a4185298c9ae57c11a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
