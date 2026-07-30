@@ -6,18 +6,16 @@ using TMPro;
 
 namespace PlayUI.Scripts
 {
-
     public class Play : MonoBehaviour
     {
         [SerializeField] TextMeshProUGUI timerText;
-        float elapsedTime;
+        public float elapsedTime;
         private bool isTimerRunning = true;
 
         public void ResultBtn()
         {
             SceneManager.LoadScene("Result");
         }
-
         private void Update()
         {
             if (!isTimerRunning) return;

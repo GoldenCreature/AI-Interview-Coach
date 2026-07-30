@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace MicroPhoneUI.Scripts
 {
-    public class microphoneSetting : MonoBehaviour
+    public class MicrophoneSetting : MonoBehaviour
     {
         [Header("[ 3D Modern Menu UI 연결 ]")]
         public TMP_Dropdown MicroDropdown;

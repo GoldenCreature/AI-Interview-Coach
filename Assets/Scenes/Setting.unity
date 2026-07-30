@@ -3261,8 +3261,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: VideoOption, Assembly-CSharp
+      - m_Target: {fileID: 200434780}
+        m_TargetAssemblyTypeName: OptionUI.Scripts.VideoOption, Assembly-CSharp
         m_MethodName: OkBtnClick
         m_Mode: 1
         m_Arguments:
@@ -4808,8 +4808,8 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: VideoOption, Assembly-CSharp
+      - m_Target: {fileID: 200434780}
+        m_TargetAssemblyTypeName: OptionUI.Scripts.VideoOption, Assembly-CSharp
         m_MethodName: DropboxOptionChange
         m_Mode: 0
         m_Arguments:
@@ -5111,7 +5111,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 712529087}
   m_Direction: 2
   m_Value: 1
-  m_Size: 0.8118228
+  m_Size: 0.8118229
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -6501,8 +6501,8 @@ MonoBehaviour:
   onValueChanged:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: VideoOption, Assembly-CSharp
+      - m_Target: {fileID: 200434780}
+        m_TargetAssemblyTypeName: OptionUI.Scripts.VideoOption, Assembly-CSharp
         m_MethodName: FullScreenBtn
         m_Mode: 0
         m_Arguments:
