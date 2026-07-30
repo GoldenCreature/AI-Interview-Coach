@@ -43,6 +43,12 @@ namespace HJS
 
             _instance = this as T;
 
+            // 부모 오브젝트가 있으면 루트로 분리 후 DontDestroyOnLoad 적용
+            if (transform.parent != null)
+            {
+                transform.SetParent(null);
+            }
+
             // 씬이 바뀌어도 삭제되지 않게 설정
             DontDestroyOnLoad(gameObject);
         }

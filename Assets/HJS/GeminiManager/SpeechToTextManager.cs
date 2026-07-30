@@ -31,7 +31,7 @@ namespace GoogleSpeechToText.Scripts
 
         private void StartRecording()
         {
-            clip = Microphone.Start(null, false, 10, 44100);
+            clip = Microphone.Start(null, false, 60, 44100);
             recording = true;
         }
 
@@ -76,11 +76,36 @@ namespace GoogleSpeechToText.Scripts
                 (response) =>
                 {
                     Debug.Log("Speech-to-Text Response: " + response);
+
                     var speechResponse = JsonUtility.FromJson<SpeechToTextResponse>(response);
+
+                    // 결과가 없는 경우 (묵음, 노이즈 등)
+                    if (speechResponse == null ||
+                        speechResponse.results == null ||
+                        speechResponse.results.Length == 0)
+                    {
+                        Debug.LogWarning("[SpeechToTextManager] STT 결과 없음 (묵음 또는 노이즈)");
+                        return;
+                    }
+
+                    // 대안 텍스트가 없는 경우
+                    if (speechResponse.results[0].alternatives == null ||
+                        speechResponse.results[0].alternatives.Length == 0)
+                    {
+                        Debug.LogWarning("[SpeechToTextManager] STT 대안 텍스트 없음");
+                        return;
+                    }
+
                     var transcript = speechResponse.results[0].alternatives[0].transcript;
+
+                    // 텍스트가 비어있는 경우
+                    if (string.IsNullOrEmpty(transcript))
+                    {
+                        Debug.LogWarning("[SpeechToTextManager] STT 변환 텍스트 비어있음");
+                        return;
+                    }
+
                     Debug.Log($"[SpeechToTextManager] STT 결과: {transcript}");
-                    // 직접 호출 대신 이벤트 발생
-                    // FillerWordDetector, GeminiManager가 자동으로 반응함
                     HJS.InterviewManager.NotifyTranscriptReceived(transcript);
                 },
                 (error) =>
