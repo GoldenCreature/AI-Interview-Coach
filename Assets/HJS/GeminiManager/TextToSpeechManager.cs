@@ -32,8 +32,8 @@ namespace GoogleTextToSpeech.Scripts
         // -----------------------------------------------
         public void SendTextToGoogle(string _text)
         {
-            _errorReceived += ErrorReceived;
-            _audioClipReceived += AudioClipReceived;
+            _errorReceived = ErrorReceived; //+= 를 =로 수정
+            _audioClipReceived = AudioClipReceived; //+= 를 =로 수정
             text_to_speech.GetSpeechAudioFromGoogle(
                 _text, voice, _audioClipReceived, _errorReceived);
         }

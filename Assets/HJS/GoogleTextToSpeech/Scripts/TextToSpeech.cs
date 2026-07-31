@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using GoogleTextToSpeech.Scripts.Data;
 using UnityEngine;
 using Input = GoogleTextToSpeech.Scripts.Data.Input;
@@ -18,7 +18,8 @@ namespace GoogleTextToSpeech.Scripts
 
         public void GetSpeechAudioFromGoogle(string textToConvert, VoiceScriptableObject voice, Action<AudioClip> audioClipReceived,  Action<BadRequestData> errorReceived)
         {
-            _actionRequestReceived += (requestData => RequestReceived(requestData,audioClipReceived));
+            _actionRequestReceived = null; // 기존 누적 콜백 초기화
+            _actionRequestReceived += (requestData => RequestReceived(requestData, audioClipReceived));
 
             if (_requestService == null)
                 _requestService = gameObject.AddComponent<RequestService>();
