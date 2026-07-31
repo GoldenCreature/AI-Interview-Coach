@@ -50,8 +50,8 @@ public class fass : MonoBehaviour
         OnFaceLandmarksDetected(landmarksList);
     }
 
-    [Header("CSV 저장 간격")]
-    [Tooltip("CSV에 점수를 저장할 최소 간격(분 단위)")]
+    [Header("저장 간격")]
+    [Tooltip("점수를 저장할 최소 간격(분 단위)")]
     public float logIntervalMinutes = 3f;
 
     private System.DateTime lastLoggedTime = System.DateTime.MinValue;
@@ -112,7 +112,7 @@ public class fass : MonoBehaviour
         float mouthWidth = Vector3.Distance(landmarks[61], landmarks[291]);
         float mouthHeight = Vector3.Distance(landmarks[13], landmarks[14]);
         float ratio = mouthHeight / (mouthWidth > 0 ? mouthWidth : 1f);
-        return Mathf.Clamp(ratio * 350f, 0f, 100f);
+        return Mathf.Clamp(ratio * 17.5f, 0f, 5f);
     }
 
     private float CalculateSurprise(List<Vector3> landmarks)
@@ -130,8 +130,8 @@ public class fass : MonoBehaviour
         // TODO: 아래 계수(1000f)는 실제 테스트 데이터를 보며 재조정 필요.
         // 평상시 표정과 놀란 표정일 때의 ratio 값을 각각 Debug.Log로 확인한 뒤
         // 그 사이 구간에 맞게 배율을 잡는 것을 권장.
-        float score = ratio * 1000f;
-        return Mathf.Clamp(score, 0f, 100f);
+        float score = ratio * 50f;
+        return Mathf.Clamp(score, 0f, 5f);
     }
 
     private float CalculateAngry(List<Vector3> landmarks)
@@ -139,7 +139,7 @@ public class fass : MonoBehaviour
         float eyebrowDist = Vector3.Distance(landmarks[55], landmarks[285]);
         float faceWidth = Vector3.Distance(landmarks[234], landmarks[454]);
         float ratio = eyebrowDist / (faceWidth > 0 ? faceWidth : 1f);
-        float score = (0.23f - ratio) * 1200f;
-        return Mathf.Clamp(score, 0f, 100f);
+        float score = (0.23f - ratio) * 60f;
+        return Mathf.Clamp(score, 0f, 5f);
     }
 }
