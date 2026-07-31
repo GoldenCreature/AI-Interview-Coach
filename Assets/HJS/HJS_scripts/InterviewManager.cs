@@ -4,6 +4,14 @@ using UnityEngine;
 
 namespace HJS
 {
+    public enum JobCategory
+    {
+        IT개발자,
+        마케팅,
+        디자인,
+        영업,
+        금융
+    }
     public class InterviewManager : SingletonBase<InterviewManager>
     {
         // -----------------------------------------------
