@@ -74,7 +74,18 @@ namespace HJS
 
             while ((index = text.IndexOf(word, index)) != -1)
             {
-                count++;
+                // 앞뒤가 공백이거나 문장 경계일 때만 카운트
+                // 예: "아이가" 에서 "아" → 뒤에 공백 없음 → 카운트 안 됨
+                // 예: "어 그러니까" 에서 "어" → 뒤에 공백 있음 → 카운트 됨
+                bool isWordStart = index == 0 || text[index - 1] == ' ';
+                bool isWordEnd = index + word.Length == text.Length
+                                 || text[index + word.Length] == ' ';
+
+                if (isWordStart && isWordEnd)
+                {
+                    count++;
+                }
+
                 index += word.Length;
             }
 
