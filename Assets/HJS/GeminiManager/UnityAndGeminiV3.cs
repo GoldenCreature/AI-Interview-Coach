@@ -58,6 +58,10 @@ namespace HJS
         // public이라 외부에서 대화기록 접근 가능
         public Content[] chatHistory;
 
+        // 현재 진행 중인 질문 번호 추적
+        // Gemini에게 몇 번째 질문에 대한 답변인지 알려주기 위해 사용
+        private int _currentQuestionNumber = 0;
+
         protected override void Awake()
         {
             base.Awake();
@@ -119,7 +123,7 @@ namespace HJS
             };
 
             chatHistory = new Content[] { systemContent, systemAck };
-
+            _currentQuestionNumber = 0; // 면접 시작 시 초기화
             Debug.Log($"[GeminiManager] 직종 프롬프트 주입 완료: {job}");
 
             // 첫 질문 시작
@@ -129,7 +133,16 @@ namespace HJS
         // STT 결과 수신 시 Gemini로 전송
         private void HandleTranscriptReceived(string transcript)
         {
-            StartCoroutine(SendChatRequestToGemini(transcript));
+            // 답변을 받을 때마다 질문 번호 증가
+            _currentQuestionNumber++;
+
+            // Gemini에게 현재 몇 번째 질문에 대한 답변인지 명시
+            // 이를 통해 Gemini가 진행 순서를 인식하고 다음 단계로 넘어갈 수 있음
+            string taggedTranscript =
+                $"[현재 {_currentQuestionNumber}번 질문에 대한 답변]\n{transcript}";
+
+            Debug.Log($"[GeminiManager] {_currentQuestionNumber}번 질문 답변 전송");
+            StartCoroutine(SendChatRequestToGemini(taggedTranscript));
         }
 
         // 면접 종료 시 종합 평가 요청
