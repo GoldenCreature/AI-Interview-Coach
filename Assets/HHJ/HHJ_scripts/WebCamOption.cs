@@ -4,9 +4,9 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace WebCamUI.Scripts
+namespace WebCamOptionUI.Scripts
 {
-    public class WebCam : MonoBehaviour
+    public class WebCamOption : MonoBehaviour
     {
         [SerializeField] private RawImage displayImage;       
         [SerializeField] private TextMeshProUGUI statusText;
