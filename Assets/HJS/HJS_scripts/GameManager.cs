@@ -20,11 +20,13 @@ namespace HJS
 
         // 씬 이름 상수
         // 나중에 씬 이름 바뀌면 여기만 수정하면 됨
-        private const string SCENE_TITLE = "TitleScene";
-        private const string SCENE_LOADING = "LoadingScene";
-        private const string SCENE_INTERVIEW_SETUP = "InterviewSetupScene";
+        private const string SCENE_TITLE = "Main";
+        private const string SCENE_LOADING = "Loading1";
+        private const string SCENE_INTERVIEW_SETUP = "Interviewer";
         private const string SCENE_INTERVIEW = "Interview Room";
-        private const string SCENE_RESULT = "ResultScene";
+        private const string SCENE_SETTING = "Setting";
+        private const string SCENE_FEEDBACK = "FeedBack";
+        private const string SCENE_RESULT = "Result";
 
         protected override void Awake()
         {
@@ -53,6 +55,13 @@ namespace HJS
             SceneManager.LoadScene(SCENE_INTERVIEW_SETUP);
         }
 
+        // 로딩 씬으로 이동하는 전용 메서드 
+        public void LoadLoadingScene()
+        {
+            ChangeState(AppState.Loading);
+            SceneManager.LoadScene(SCENE_LOADING);
+        }
+
         // 면접 화면으로 이동
         // 유형 설정 완료 후 호출
         public void LoadInterviewScene()
@@ -67,6 +76,20 @@ namespace HJS
         {
             ChangeState(AppState.Result);
             SceneManager.LoadScene(SCENE_RESULT);
+        }
+
+        // 프로그램 세팅 화면으로 이동
+        public void LoadSettingScene()
+        {
+            ChangeState(AppState.Title); // 타이틀 계열 화면
+            SceneManager.LoadScene(SCENE_SETTING);
+        }
+
+        // 이전 피드백 목록 확인 화면으로 이동
+        public void LoadFeedbackScene()
+        {
+            ChangeState(AppState.Title);
+            SceneManager.LoadScene(SCENE_FEEDBACK);
         }
 
         // 앱 종료

@@ -123,6 +123,17 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!114 &247008470 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 860316366923232791, guid: 1e7a1a3df41d97b45b90d77ca618ac13, type: 3}
+  m_PrefabInstance: {fileID: 5893705270292740536}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9085046f02f69544eb97fd06b6048fe2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &871569481
 GameObject:
   m_ObjectHideFlags: 0
@@ -217,6 +228,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!114 &990505806 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 951335506779293694, guid: 1e7a1a3df41d97b45b90d77ca618ac13, type: 3}
+  m_PrefabInstance: {fileID: 5893705270292740536}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9085046f02f69544eb97fd06b6048fe2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1281739163
 GameObject:
   m_ObjectHideFlags: 0
@@ -309,6 +331,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2040130721 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4917878234744430125, guid: 1e7a1a3df41d97b45b90d77ca618ac13, type: 3}
+  m_PrefabInstance: {fileID: 5893705270292740536}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b743370ac3e4ec2a1668f5455a8ef8a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &5893705270292740536
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -321,6 +354,18 @@ PrefabInstance:
       propertyPath: m_Name
       value: InterviewSelectUI
       objectReference: {fileID: 0}
+    - target: {fileID: 3740758513503048110, guid: 1e7a1a3df41d97b45b90d77ca618ac13, type: 3}
+      propertyPath: jobDropdown
+      value: 
+      objectReference: {fileID: 2040130721}
+    - target: {fileID: 3740758513503048110, guid: 1e7a1a3df41d97b45b90d77ca618ac13, type: 3}
+      propertyPath: casualToggle
+      value: 
+      objectReference: {fileID: 990505806}
+    - target: {fileID: 3740758513503048110, guid: 1e7a1a3df41d97b45b90d77ca618ac13, type: 3}
+      propertyPath: intensiveToggle
+      value: 
+      objectReference: {fileID: 247008470}
     - target: {fileID: 9035261648720788532, guid: 1e7a1a3df41d97b45b90d77ca618ac13, type: 3}
       propertyPath: m_Pivot.x
       value: 0
