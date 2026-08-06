@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -8,9 +8,9 @@ namespace WebCamControllerUI.Scripts
 {
     public class WebCamController : MonoBehaviour
     {
-        [Header("UI ¿¬°á")]
-        [SerializeField] private RawImage webcamDisplay;       // Ä«¸Ş¶ó È­¸éÀ» ¶ç¿ï RawImage
-        [SerializeField] private TextMeshProUGUI warningText;   // °æ°í ¹®±¸ ÅØ½ºÆ®
+        [Header("UI ì—°ê²°")]
+        [SerializeField] private RawImage webcamDisplay;       // ì¹´ë©”ë¼ í™”ë©´ì„ ë„ìš¸ RawImage
+        [SerializeField] private TextMeshProUGUI warningText;   // ê²½ê³  ë¬¸êµ¬ í…ìŠ¤íŠ¸
 
         private WebCamTexture webcamTexture;
 
@@ -21,31 +21,31 @@ namespace WebCamControllerUI.Scripts
 
         public void InitializeWebCam()
         {
-            // 1. ¿¬°áµÈ À¥Ä· ÀåÄ¡ °Ë»ö
+            // 1. ì—°ê²°ëœ ì›¹ìº  ì¥ì¹˜ ê²€ìƒ‰
             WebCamDevice[] devices = WebCamTexture.devices;
 
-            // 2. À¥Ä·ÀÌ ¾ø°Å³ª ¿¬°áµÇÁö ¾ÊÀº °æ¿ì
+            // 2. ì›¹ìº ì´ ì—†ê±°ë‚˜ ì—°ê²°ë˜ì§€ ì•Šì€ ê²½ìš°
             if (devices.Length == 0)
             {
-                ShowNoCameraState("À¥Ä·ÀÌ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù.\nÄ«¸Ş¶ó¸¦ ¿¬°áÇØ ÁÖ¼¼¿ä.");
+                ShowNoCameraState("ì›¹ìº ì´ ì—°ê²°ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.\nì¹´ë©”ë¼ë¥¼ ì—°ê²°í•´ ì£¼ì„¸ìš”.");
                 return;
             }
 
-            // 3. À¥Ä·ÀÌ ¿¬°áµÇ¾î ÀÖ´Â °æ¿ì (Ã¹ ¹øÂ° Ä«¸Ş¶ó »ç¿ë)
+            // 3. ì›¹ìº ì´ ì—°ê²°ë˜ì–´ ìˆëŠ” ê²½ìš° (ì²« ë²ˆì§¸ ì¹´ë©”ë¼ ì‚¬ìš©)
             try
             {
                 webcamTexture = new WebCamTexture(devices[0].name, 1280, 720, 30);
                 webcamDisplay.texture = webcamTexture;
                 webcamTexture.Play();
 
-                // UI »óÅÂ ÀüÈ¯
+                // UI ìƒíƒœ ì „í™˜
                 webcamDisplay.gameObject.SetActive(true);
                 warningText.gameObject.SetActive(false);
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"À¥Ä· ¿¬°á ½ÇÆĞ: {e.Message}");
-                ShowNoCameraState("Ä«¸Ş¶ó¸¦ ºÒ·¯¿Ã ¼ö ¾ø½À´Ï´Ù.\nÀåÄ¡ »óÅÂ¸¦ È®ÀÎÇØ ÁÖ¼¼¿ä.");
+                Debug.LogError($"ì›¹ìº  ì—°ê²° ì‹¤íŒ¨: {e.Message}");
+                ShowNoCameraState("ì¹´ë©”ë¼ë¥¼ ë¶ˆëŸ¬ì˜¬ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.\nì¥ì¹˜ ìƒíƒœë¥¼ í™•ì¸í•´ ì£¼ì„¸ìš”.");
             }
         }
 
@@ -58,7 +58,7 @@ namespace WebCamControllerUI.Scripts
 
         private void OnDisable()
         {
-            // ¾À ÀüÈ¯ÀÌ³ª ºñÈ°¼ºÈ­ ½Ã Ä«¸Ş¶ó ÀÚ¿ø ÇØÁ¦
+            // ì”¬ ì „í™˜ì´ë‚˜ ë¹„í™œì„±í™” ì‹œ ì¹´ë©”ë¼ ìì› í•´ì œ
             if (webcamTexture != null && webcamTexture.isPlaying)
             {
                 webcamTexture.Stop();

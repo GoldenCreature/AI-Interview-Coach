@@ -18,7 +18,7 @@ namespace LoadingUI.Scripts
         IEnumerator LoadScene()
         {
             yield return null;
-            AsyncOperation operation = SceneManager.LoadSceneAsync("Play");
+            AsyncOperation operation = SceneManager.LoadSceneAsync("Interview Room");
             operation.allowSceneActivation = false;
 
             while (!operation.isDone)

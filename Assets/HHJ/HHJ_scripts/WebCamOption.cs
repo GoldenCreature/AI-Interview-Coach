@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -17,7 +17,7 @@ namespace WebCamOptionUI.Scripts
         {
             if (WebCamTexture.devices.Length == 0)
             {
-                statusText.text = "¿¬°áµÈ Ä«¸Ş¶ó¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù.";
+                statusText.text = "ì—°ê²°ëœ ì¹´ë©”ë¼ë¥¼ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.";
                 return;
             }
 
@@ -32,7 +32,7 @@ namespace WebCamOptionUI.Scripts
             displayImage.texture = webCamTexture;
             webCamTexture.Play();
 
-            statusText.text = "È­¸é Å×½ºÆ® ÁßÀÔ´Ï´Ù...";
+            statusText.text = "í™”ë©´ í…ŒìŠ¤íŠ¸ ì¤‘ì…ë‹ˆë‹¤...";
         }
 
         public void StopCamTest()
@@ -41,7 +41,7 @@ namespace WebCamOptionUI.Scripts
             {
                 webCamTexture.Stop();
                 displayImage.texture = null;
-                statusText.text = "Ä«¸Ş¶ó Å×½ºÆ®°¡ Á¾·áµÇ¾ú½À´Ï´Ù.";
+                statusText.text = "ì¹´ë©”ë¼ í…ŒìŠ¤íŠ¸ê°€ ì¢…ë£Œë˜ì—ˆìŠµë‹ˆë‹¤.";
             }
         }
         private void OnDisable()
