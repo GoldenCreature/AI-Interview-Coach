@@ -3,7 +3,7 @@ using TMPro;
 
 // 팀원이 작성한 네임스페이스 가져오기
 using PlayUI.Scripts;         // Play.cs (타이머)
-using WebCamUI.Scripts;       // WebCam.cs (웹캠)
+using WebCamOptionUI.Scripts;       // WebCam.cs (웹캠)
 using MicroPhoneUI.Scripts;   // microphoneSetting.cs (마이크)
 using OptionUI.Scripts;       // VideoOption.cs (비디오 옵션)
 
@@ -16,7 +16,7 @@ namespace HJS
 
         [Header("--- 기능별 전용 스크립트 연결 ---")]
         [SerializeField] private Play timerController;               // Play.cs 연결
-        [SerializeField] private WebCam webCamController;            // WebCam.cs 연결
+        [SerializeField] private WebCamOption webCamController;            // WebCam.cs 연결
         [SerializeField] private MicrophoneSetting micController;    // microphoneSetting.cs 연결
         [SerializeField] private VideoOption videoOption;            // VideoOption.cs 연결
 
