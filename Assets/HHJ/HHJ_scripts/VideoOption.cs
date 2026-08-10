@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -26,22 +26,22 @@ namespace OptionUI.Scripts
         {
             resolutions.Clear();
 
-            // ÇöÀç ¸ğ´ÏÅÍÀÇ È­¸é ºñÀ² °è»ê (¿¹: 16:9 = 1.777...)
+            // í˜„ì¬ ëª¨ë‹ˆí„°ì˜ í™”ë©´ ë¹„ìœ¨ ê³„ì‚° (ì˜ˆ: 16:9 = 1.777...)
             float targetAspectRatio = (float)Screen.currentResolution.width / Screen.currentResolution.height;
 
             for (int i = 0; i < Screen.resolutions.Length; i++)
             {
                 Resolution currentRes = Screen.resolutions[i];
 
-                // 1. ÁÖ»çÀ² ÇÊÅÍ¸µ (60Hz ºÎ±Ù)
+                // 1. ì£¼ì‚¬ìœ¨ í•„í„°ë§ (60Hz ë¶€ê·¼)
                 if (currentRes.refreshRateRatio.value >= 59.0 && currentRes.refreshRateRatio.value <= 61.0)
                 {
-                    // 2. ÇöÀç ¸ğ´ÏÅÍ¿Í ºñÀ²(Aspect Ratio)ÀÌ °°Àº ÇØ»óµµ¸¸ ÃßÃâ (¿ÀÂ÷ ¹üÀ§ 0.05 ÀÌ³»)
+                    // 2. í˜„ì¬ ëª¨ë‹ˆí„°ì™€ ë¹„ìœ¨(Aspect Ratio)ì´ ê°™ì€ í•´ìƒë„ë§Œ ì¶”ì¶œ (ì˜¤ì°¨ ë²”ìœ„ 0.05 ì´ë‚´)
                     float currentAspect = (float)currentRes.width / currentRes.height;
                     if (Mathf.Abs(currentAspect - targetAspectRatio) > 0.05f)
                         continue;
 
-                    // 3. Áßº¹ ÇØ»óµµ Á¦°Å
+                    // 3. ì¤‘ë³µ í•´ìƒë„ ì œê±°
                     bool isDuplicate = false;
                     foreach (Resolution r in resolutions)
                     {
@@ -70,7 +70,7 @@ namespace OptionUI.Scripts
                 option.text = item.width + " X " + item.height;
                 resolutionDropdown.options.Add(option);
 
-                // ÇöÀç Àû¿ë ÁßÀÎ ÇØ»óµµ À§Ä¡ Ã£±â
+                // í˜„ì¬ ì ìš© ì¤‘ì¸ í•´ìƒë„ ìœ„ì¹˜ ì°¾ê¸°
                 if (item.width == Screen.width && item.height == Screen.height)
                 {
                     currentResIndex = optionNum;

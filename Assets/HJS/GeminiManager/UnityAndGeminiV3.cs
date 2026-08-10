@@ -42,10 +42,9 @@ namespace HJS
 {
     public class UnityAndGeminiV3 : SingletonBase<UnityAndGeminiV3>
     {
-        [Header("Gemini API 키")]
-        // Inspector에서 직접 입력하는 Gemini API 키
-        // 절대 커밋하지 말 것
-        public string apiKey;
+        // API 키는 SettingsManager에서 가져옴
+        // Inspector 입력 방식 제거 → 설정 화면 UI에서 입력
+        private string ApiKey => SettingsManager.Instance.GeminiApiKey;
 
         // 사용할 Gemini 모델의 API 주소
         // 모델을 바꾸고 싶으면 URL 안의 모델명 부분만 수정하면 됨
@@ -65,17 +64,7 @@ namespace HJS
         protected override void Awake()
         {
             base.Awake();
-
-            // chatHistory 빈 배열로 초기화
-            // null 상태에서 접근하면 오류 발생하기 때문에 미리 초기화
             chatHistory = new Content[0];
-
-            // API 키 누락 경고
-            if (string.IsNullOrEmpty(apiKey))
-            {
-                Debug.LogError("[GeminiManager] API 키가 비어있습니다! Inspector에서 입력해주세요.");
-            }
-
             Debug.Log("[GeminiManager] 초기화 완료");
         }
 
@@ -478,7 +467,7 @@ namespace HJS
         // -----------------------------------------------
         private IEnumerator SendChatRequestToGemini(string newMessage)
         {
-            string url = $"{apiEndpoint}?key={apiKey}";
+            string url = $"{apiEndpoint}?key={ApiKey}";
 
             // 사용자 메시지를 Content 형태로 만듦
             Content userContent = new Content
@@ -599,7 +588,7 @@ namespace HJS
         // -----------------------------------------------
         private IEnumerator SendEvaluationRequest(InterviewResultData resultData)
         {
-            string url = $"{apiEndpoint}?key={apiKey}";
+            string url = $"{apiEndpoint}?key={ApiKey}";
 
             // 말버릇 카운트 텍스트 만들기
             string fillerSummary = "없음";

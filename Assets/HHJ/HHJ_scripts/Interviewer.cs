@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using HJS;
@@ -7,19 +7,19 @@ namespace InterViewUI.Scripts
 {
     public class Interviewer : MonoBehaviour
     {
-        [Header("Á÷Á¾ ¼±ÅÃ µå·Ó´Ù¿î")]
+        [Header("ì§ì¢… ì„ íƒ ë“œë¡­ë‹¤ìš´")]
         [SerializeField] private TMP_Dropdown jobDropdown;
 
-        [Header("¸éÁ¢°ü À¯Çü Åä±Û")]
-        // Inspector¿¡¼­ ToggleGroup ¾ÈÀÇ °¢ Toggle ¿¬°á
-        [SerializeField] private Toggle intensiveToggle;  // Á÷¹« ±â¹İ ½ÉÈ­ ¸éÁ¢
-        [SerializeField] private Toggle casualToggle;     // ÀÏ»óÀû ´ëÈ­ ¸éÁ¢
+        [Header("ë©´ì ‘ê´€ ìœ í˜• í† ê¸€")]
+        // Inspectorì—ì„œ ToggleGroup ì•ˆì˜ ê° Toggle ì—°ê²°
+        [SerializeField] private Toggle intensiveToggle;  // ì§ë¬´ ê¸°ë°˜ ì‹¬í™” ë©´ì ‘
+        [SerializeField] private Toggle casualToggle;     // ì¼ìƒì  ëŒ€í™” ë©´ì ‘
 
         private void Start()
         {
-            // µå·Ó´Ù¿î ÃÊ±âÈ­
-            // JobCategory enum¿¡¼­ ÀÚµ¿À¸·Î ¿É¼Ç °¡Á®¿À±â
-            // ³ªÁß¿¡ Á÷Á¾ Ãß°¡ ½Ã enum¸¸ ¼öÁ¤ÇÏ¸é ÀÚµ¿ ¹İ¿µµÊ
+            // ë“œë¡­ë‹¤ìš´ ì´ˆê¸°í™”
+            // JobCategory enumì—ì„œ ìë™ìœ¼ë¡œ ì˜µì…˜ ê°€ì ¸ì˜¤ê¸°
+            // ë‚˜ì¤‘ì— ì§ì¢… ì¶”ê°€ ì‹œ enumë§Œ ìˆ˜ì •í•˜ë©´ ìë™ ë°˜ì˜ë¨
             if (jobDropdown != null)
             {
                 jobDropdown.ClearOptions();
@@ -31,7 +31,7 @@ namespace InterViewUI.Scripts
                 jobDropdown.onValueChanged.AddListener(OnJobChanged);
             }
 
-            // Åä±Û ¸®½º³Ê ¿¬°á
+            // í† ê¸€ ë¦¬ìŠ¤ë„ˆ ì—°ê²°
             if (intensiveToggle != null)
                 intensiveToggle.onValueChanged.AddListener((isOn) =>
                 {
@@ -44,34 +44,43 @@ namespace InterViewUI.Scripts
                     if (isOn) OnTypeSelected(InterviewerType.Casual);
                 });
 
-            // ±âº»°ª ¼³Á¤
-            InterviewManager.Instance.SetJob(JobCategory.IT°³¹ßÀÚ);
+            // ê¸°ë³¸ê°’ ì„¤ì •
+            InterviewManager.Instance.SetJob(JobCategory.ITê°œë°œì);
             InterviewManager.Instance.SetInterviewerType(InterviewerType.Intensive);
         }
 
-        // Á÷Á¾ µå·Ó´Ù¿î º¯°æ ½Ã È£Ãâ
-        // index°¡ JobCategory enum ¼ø¼­¿Í ÀÏÄ¡ÇÏ¹Ç·Î ¹Ù·Î Ä³½ºÆÃ °¡´É
+        // ì§ì¢… ë“œë¡­ë‹¤ìš´ ë³€ê²½ ì‹œ í˜¸ì¶œ
+        // indexê°€ JobCategory enum ìˆœì„œì™€ ì¼ì¹˜í•˜ë¯€ë¡œ ë°”ë¡œ ìºìŠ¤íŒ… ê°€ëŠ¥
         private void OnJobChanged(int index)
         {
             JobCategory selectedJob = (JobCategory)index;
             InterviewManager.Instance.SetJob(selectedJob);
-            Debug.Log($"[Interviewer] Á÷Á¾ ¼±ÅÃ: {selectedJob}");
+            Debug.Log($"[Interviewer] ì§ì¢… ì„ íƒ: {selectedJob}");
         }
 
-        // ¸éÁ¢°ü À¯Çü Åä±Û ¼±ÅÃ ½Ã È£Ãâ
+        // ë©´ì ‘ê´€ ìœ í˜• í† ê¸€ ì„ íƒ ì‹œ í˜¸ì¶œ
         private void OnTypeSelected(InterviewerType type)
         {
             InterviewManager.Instance.SetInterviewerType(type);
-            Debug.Log($"[Interviewer] ¸éÁ¢°ü À¯Çü ¼±ÅÃ: {type}");
+            Debug.Log($"[Interviewer] ë©´ì ‘ê´€ ìœ í˜• ì„ íƒ: {type}");
         }
 
-        // [¸éÁ¢ ½ÃÀÛ] ¹öÆ° ¡æ ·Îµù ¾ÀÀ¸·Î ÀÌµ¿
+        // [ë©´ì ‘ ì‹œì‘] ë²„íŠ¼ â†’ ë¡œë”© ì”¬ìœ¼ë¡œ ì´ë™
         public void PlayBtn()
         {
+            // API í‚¤ ìœ íš¨ì„± ê²€ì‚¬
+            // ë¹„ì–´ìˆìœ¼ë©´ ê²½ê³  í›„ ì”¬ ì „í™˜ ë§‰ê¸°
+            if (!SettingsManager.Instance.IsApiKeysValid())
+            {
+                Debug.LogWarning("[Interviewer] API í‚¤ê°€ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤. ì„¤ì • í™”ë©´ì—ì„œ ì…ë ¥í•´ì£¼ì„¸ìš”.");
+                // TODO: ê²½ê³  íŒì—… UI ì—°ê²° ìš”ë§
+                return;
+            }
+
             GameManager.Instance.LoadLoadingScene();
         }
 
-        // [¸ŞÀÎ È­¸é] ¹öÆ° ¡æ Å¸ÀÌÆ²·Î ÀÌµ¿
+        // [ë©”ì¸ í™”ë©´] ë²„íŠ¼ â†’ íƒ€ì´í‹€ë¡œ ì´ë™
         public void MainBtn()
         {
             GameManager.Instance.LoadTitleScene();
