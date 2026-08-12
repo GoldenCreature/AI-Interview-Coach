@@ -1,14 +1,15 @@
-﻿using System.Collections;
+﻿using HJS;
+using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 using System.IO;
+using UnityEngine;
 
 namespace GoogleSpeechToText.Scripts
 {
     public class SpeechToTextManager : MonoBehaviour
     {
-        [Header("Google Cloud API Key")]
-        [SerializeField] private string apiKey;
+        // API 키는 SettingsManager에서 가져옴
+        private string ApiKey => SettingsManager.Instance.GoogleApiKey;
 
         private AudioClip clip;
         private byte[] bytes;
@@ -16,13 +17,13 @@ namespace GoogleSpeechToText.Scripts
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Space) && !recording)
+            if (Input.GetKeyDown(SettingsManager.Instance.MicKey) && !recording)
             {
                 StartRecording();
                 recording = true;
             }
 
-            if (Input.GetKeyUp(KeyCode.Space) && recording)
+            if (Input.GetKeyUp(SettingsManager.Instance.MicKey) && recording)
             {
                 StopRecording();
                 recording = false;
@@ -72,7 +73,7 @@ namespace GoogleSpeechToText.Scripts
             bytes = EncodeAsWAV(samples, clip.frequency, clip.channels);
             recording = false;
 
-            GoogleCloudSpeechToText.SendSpeechToTextRequest(bytes, apiKey,
+            GoogleCloudSpeechToText.SendSpeechToTextRequest(bytes, ApiKey,
                 (response) =>
                 {
                     Debug.Log("Speech-to-Text Response: " + response);

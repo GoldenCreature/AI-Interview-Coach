@@ -1,5 +1,6 @@
-﻿using System;
-using GoogleTextToSpeech.Scripts.Data;
+﻿using GoogleTextToSpeech.Scripts.Data;
+using HJS;
+using System;
 using UnityEngine;
 using Input = GoogleTextToSpeech.Scripts.Data.Input;
 
@@ -7,7 +8,8 @@ namespace GoogleTextToSpeech.Scripts
 {
     public class TextToSpeech : MonoBehaviour
     {
-        [SerializeField] private string apiKey;
+        // API 키는 SettingsManager에서 가져옴
+        private string ApiKey => SettingsManager.Instance.GoogleApiKey;
 
         private Action<string> _actionRequestReceived;
         private Action<BadRequestData> _errorReceived;
@@ -50,7 +52,7 @@ namespace GoogleTextToSpeech.Scripts
             };
 
             RequestService.SendDataToGoogle("https://texttospeech.googleapis.com/v1/text:synthesize", dataToSend,
-                apiKey, _actionRequestReceived, errorReceived);
+                ApiKey, _actionRequestReceived, errorReceived);
         }
 
         private static void RequestReceived(string requestData, Action<AudioClip> audioClipReceived)

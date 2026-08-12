@@ -1,22 +1,79 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
-using HJS; // �� �߰�
+using HJS;
 
 namespace PlayUI.Scripts
 {
     public class Play : MonoBehaviour
     {
         [SerializeField] TextMeshProUGUI timerText;
+
         public float elapsedTime;
         private bool isTimerRunning = true;
 
-        // ���� ���� ��ư
-        // ���� �� ��ȯ ��� EndInterview() ȣ��
-        // �� OnInterviewEnded �̺�Ʈ �߻�
-        // �� UIManager�� �ڵ����� Ÿ�̸� ����, �� ��ȯ ó��
+        [Header("--- 설정 팝업 ---")]
+        [SerializeField] private GameObject settingsPopup;
+        [SerializeField] private WebCamOptionUI.Scripts.WebCamOption webCamController;
+
+
+        private void OnEnable()
+        {
+            // 면접 종료 이벤트 구독
+            // UIManager 대신 Play.cs가 직접
+            // 타이머 정지 및 시간 저장 담당
+            InterviewManager.OnInterviewEnded += HandleInterviewEnded;
+        }
+
+        private void OnDisable()
+        {
+            // 이벤트 구독 해제
+            InterviewManager.OnInterviewEnded -= HandleInterviewEnded;
+        }
+
+        // -----------------------------------------------
+        // 면접 종료 시 타이머만 정지
+        // 시간 저장 X (Result 씬에 타이머 표시 없음)
+        // -----------------------------------------------
+        private void HandleInterviewEnded(InterviewResultData resultData)
+        {
+            Debug.Log("[Play] 면접 종료 감지 → 타이머 정지");
+            PauseTimer();
+        }
+
+        // [설정] 버튼 → 팝업 열기 + 타이머 정지 + 웹캠 테스트 시작
+        public void OnClickSettings()
+        {
+            if (settingsPopup != null)
+            {
+                settingsPopup.SetActive(true);
+                PauseTimer();
+
+                if (webCamController != null)
+                    webCamController.StartCamTest();
+            }
+        }
+
+        // [설정 닫기] 버튼 → 팝업 닫기 + 타이머 재개 + 웹캠 테스트 종료
+        public void OnClickCloseSettings()
+        {
+            if (settingsPopup != null)
+            {
+                if (webCamController != null)
+                    webCamController.StopCamTest();
+
+                settingsPopup.SetActive(false);
+                ResumeTimer();
+            }
+        }
+
+        // 면접 종료 버튼
+        // 직접 씬 전환 대신 EndInterview() 호출
+        // → OnInterviewEnded 이벤트 발생
+        // → UIManager가 자동으로 씬 전환 처리
+        // → Play.cs가 자동으로 타이머 정지 처리
         public void ResultBtn()
         {
             InterviewManager.Instance.EndInterview();

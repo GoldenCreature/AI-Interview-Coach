@@ -46,6 +46,10 @@ namespace HJS
         // 구독자: GeminiManager (종합 평가), DBManager (저장), UIManager (결과 화면)
         public static event Action<InterviewResultData> OnInterviewEnded;
 
+        // Gemini 종합 평가 결과가 준비됐을 때 발생
+        // 구독자: Result.cs (결과 화면 표시)
+        public static event Action<string> OnEvaluationReceived;
+
         // -----------------------------------------------
         // 면접 진행 중 데이터 누적
         // -----------------------------------------------
@@ -167,6 +171,12 @@ namespace HJS
         public static void NotifyGeminiResponseReceived(string response)
         {
             OnGeminiResponseReceived?.Invoke(response);
+        }
+
+        // Gemini 평가 결과 전달 (UIManager에서 호출)
+        public static void NotifyEvaluationReceived(string evaluationResult)
+        {
+            OnEvaluationReceived?.Invoke(evaluationResult);
         }
 
         // 태도 점수 설정 (신모세 MediaPipeManager에서 호출)
