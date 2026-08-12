@@ -79,10 +79,13 @@ namespace HJS
         // 결과 화면 표시 함수
         // Gemini 평가 결과를 Result.cs로 전달
         // -----------------------------------------------
+      
         public void ShowResult(string evaluationResult)
         {
             Debug.Log("[UIManager] 결과 데이터 전달");
-            // TODO: Result.cs 작성 후 연결
+            // 평가 결과 이벤트 발생
+            // Result.cs가 구독하고 있다가 자동으로 표시
+            InterviewManager.NotifyEvaluationReceived(evaluationResult);
         }
     }
 }

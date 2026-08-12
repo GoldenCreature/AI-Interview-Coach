@@ -10,8 +10,14 @@ namespace PlayUI.Scripts
     public class Play : MonoBehaviour
     {
         [SerializeField] TextMeshProUGUI timerText;
+
         public float elapsedTime;
         private bool isTimerRunning = true;
+
+        [Header("--- 설정 팝업 ---")]
+        [SerializeField] private GameObject settingsPopup;
+        [SerializeField] private WebCamOptionUI.Scripts.WebCamOption webCamController;
+
 
         private void OnEnable()
         {
@@ -35,6 +41,32 @@ namespace PlayUI.Scripts
         {
             Debug.Log("[Play] 면접 종료 감지 → 타이머 정지");
             PauseTimer();
+        }
+
+        // [설정] 버튼 → 팝업 열기 + 타이머 정지 + 웹캠 테스트 시작
+        public void OnClickSettings()
+        {
+            if (settingsPopup != null)
+            {
+                settingsPopup.SetActive(true);
+                PauseTimer();
+
+                if (webCamController != null)
+                    webCamController.StartCamTest();
+            }
+        }
+
+        // [설정 닫기] 버튼 → 팝업 닫기 + 타이머 재개 + 웹캠 테스트 종료
+        public void OnClickCloseSettings()
+        {
+            if (settingsPopup != null)
+            {
+                if (webCamController != null)
+                    webCamController.StopCamTest();
+
+                settingsPopup.SetActive(false);
+                ResumeTimer();
+            }
         }
 
         // 면접 종료 버튼

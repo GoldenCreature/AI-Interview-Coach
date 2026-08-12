@@ -658,7 +658,10 @@ namespace HJS
                         string evaluationResult = response.candidates[0].content.parts[0].text;
                         Debug.Log("=== 종합 평가 결과 ===\n" + evaluationResult);
 
-                        // TODO: UIManager.Instance.ShowResult(evaluationResult) 연결 예정
+                        // 평가 결과를 UIManager를 통해 Result.cs로 전달
+                        // UIManager → InterviewManager.NotifyEvaluationReceived()
+                        // → Result.cs.HandleEvaluationReceived() 자동 실행
+                        UIManager.Instance.ShowResult(evaluationResult);
                     }
                     else
                     {

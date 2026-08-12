@@ -1,3 +1,4 @@
+using HJS;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,11 +10,11 @@ namespace FeedBackUI.Scripts
     {
         public void ResultBtn()
         {
-            SceneManager.LoadScene("Result");
+            GameManager.Instance.LoadResultScene();
         }
         public void MainBtn()
         {
-            SceneManager.LoadScene("Main");
+            GameManager.Instance.LoadTitleScene();
         }
     }
 }
