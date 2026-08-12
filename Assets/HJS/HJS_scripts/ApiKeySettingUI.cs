@@ -33,7 +33,8 @@ namespace SettingUI.Scripts
             {
                 Debug.LogWarning("[ApiKeySettingUI] Gemini API 키가 비어있습니다!");
                 if (geminiStatusText != null)
-                    geminiStatusText.text = "API 키를 입력해주세요!";
+                    geminiStatusText.text = "※ API 키를 입력해주세요!";
+                    geminiStatusText.color = Color.red;
                 return;
             }
 
@@ -43,7 +44,8 @@ namespace SettingUI.Scripts
 
             // 상태 텍스트 업데이트
             if (geminiStatusText != null)
-                geminiStatusText.text = "Gemini API 키 설정 완료 ✓";
+                geminiStatusText.text = "Gemini API 키 설정 완료";
+                geminiStatusText.color = Color.green;
 
             // 보안을 위해 입력 필드 초기화
             geminiApiInputField.text = "";
@@ -63,7 +65,8 @@ namespace SettingUI.Scripts
             {
                 Debug.LogWarning("[ApiKeySettingUI] Google Cloud API 키가 비어있습니다!");
                 if (googleStatusText != null)
-                    googleStatusText.text = "API 키를 입력해주세요!";
+                    googleStatusText.text = "※ API 키를 입력해주세요!";
+                    googleStatusText.color = Color.red;
                 return;
             }
 
@@ -73,7 +76,8 @@ namespace SettingUI.Scripts
 
             // 상태 텍스트 업데이트
             if (googleStatusText != null)
-                googleStatusText.text = "Google Cloud API 키 설정 완료 ✓";
+                googleStatusText.text = "Google Cloud API 키 설정 완료";
+                googleStatusText.color = Color.green;
 
             // 보안을 위해 입력 필드 초기화
             googleApiInputField.text = "";

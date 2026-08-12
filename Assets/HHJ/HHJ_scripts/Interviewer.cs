@@ -15,6 +15,9 @@ namespace InterViewUI.Scripts
         [SerializeField] private Toggle intensiveToggle;  // 직무 기반 심화 면접
         [SerializeField] private Toggle casualToggle;     // 일상적 대화 면접
 
+        [Header("경고 팝업 UI")]
+        [SerializeField] private GameObject apiWarningPopup;   // 경고 팝업 패널 오브젝트
+
         private void Start()
         {
             // 드롭다운 초기화
@@ -74,6 +77,11 @@ namespace InterViewUI.Scripts
             {
                 Debug.LogWarning("[Interviewer] API 키가 설정되지 않았습니다. 설정 화면에서 입력해주세요.");
                 // TODO: 경고 팝업 UI 연결 요망
+                // 경고 팝업 활성화
+                if (apiWarningPopup != null)
+                {
+                    apiWarningPopup.SetActive(true);
+                }
                 return;
             }
 
@@ -84,6 +92,13 @@ namespace InterViewUI.Scripts
         public void MainBtn()
         {
             GameManager.Instance.LoadTitleScene();
+        }
+        public void CloseWarningPopup()
+        {
+            if (apiWarningPopup != null)
+            {
+                apiWarningPopup.SetActive(false);
+            }
         }
     }
 }
