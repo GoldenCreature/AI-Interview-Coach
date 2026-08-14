@@ -48,6 +48,7 @@ public class CustomPathCSVLogger : MonoBehaviour
         Debug.Log($"[CSV Logger] 최종 CSV 파일 저장 경로: {finalFilePath}");
         // 4. 파일이 없을 때만 헤더(Header) 작성
         // [수정] 감정별(기쁨/놀람/분노) 누적 합계·평균 컬럼 추가
+        // [추가] 면접용 종합 평가 컬럼(등급/요약/상세) 추가
         if (!File.Exists(finalFilePath))
         {
             try
@@ -55,7 +56,8 @@ public class CustomPathCSVLogger : MonoBehaviour
                 using (StreamWriter sw = File.CreateText(finalFilePath))
                 {
                     sw.WriteLine("Timestamp,SmileScore,SurpriseScore,AngryScore," +
-                                 "SmileTotal,SmileAverage,SurpriseTotal,SurpriseAverage,AngryTotal,AngryAverage");
+                                 "SmileTotal,SmileAverage,SurpriseTotal,SurpriseAverage,AngryTotal,AngryAverage," +
+                                 "EvaluationGrade,EvaluationSummary,EvaluationDetail,EvaluationScore");
                 }
             }
             catch (Exception e)
@@ -67,19 +69,29 @@ public class CustomPathCSVLogger : MonoBehaviour
     /// <summary>
     /// 외부에서 점수를 전달받아 CSV에 실시간으로 한 줄씩 기록하는 함수
     /// [수정] 감정별 누적 합계/평균 값도 함께 저장
+    /// [추가] 면접용 종합 평가(등급/요약/상세)도 함께 저장
     /// </summary>
     public void SaveScoreToCSV(
         float smile, float surprise, float angry,
         float smileTotal, float smileAverage,
         float surpriseTotal, float surpriseAverage,
-        float angryTotal, float angryAverage)
+        float angryTotal, float angryAverage,
+        string evaluationGrade, string evaluationSummary, string evaluationDetail,
+        float evaluationScore)
     {
         if (string.IsNullOrEmpty(finalFilePath)) return;
         string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+
+        // CSV 규격상 콤마/줄바꿈/큰따옴표가 포함된 텍스트는 큰따옴표로 감싸고
+        // 내부 큰따옴표는 두 개("")로 이스케이프해야 함. evaluationDetail은 여러 줄 코멘트라 특히 중요.
+        string safeSummary = EscapeCsvField(evaluationSummary);
+        string safeDetail = EscapeCsvField(evaluationDetail);
+
         string csvLine = $"{timestamp},{smile:F1},{surprise:F1},{angry:F1}," +
                           $"{smileTotal:F1},{smileAverage:F2}," +
                           $"{surpriseTotal:F1},{surpriseAverage:F2}," +
-                          $"{angryTotal:F1},{angryAverage:F2}";
+                          $"{angryTotal:F1},{angryAverage:F2}," +
+                          $"{evaluationGrade},{safeSummary},{safeDetail},{evaluationScore:F1}";
         try
         {
             using (StreamWriter sw = File.AppendText(finalFilePath))
@@ -92,5 +104,17 @@ public class CustomPathCSVLogger : MonoBehaviour
         {
             Debug.LogError($"[CSV Logger] 파일 쓰기 실패: {e.Message}");
         }
+    }
+
+    // [추가] CSV 필드 이스케이프 처리 (콤마/줄바꿈/큰따옴표 포함 시 큰따옴표로 감싸기)
+    private string EscapeCsvField(string field)
+    {
+        if (string.IsNullOrEmpty(field)) return "";
+
+        if (field.Contains(",") || field.Contains("\"") || field.Contains("\n") || field.Contains("\r"))
+        {
+            return "\"" + field.Replace("\"", "\"\"") + "\"";
+        }
+        return field;
     }
 }

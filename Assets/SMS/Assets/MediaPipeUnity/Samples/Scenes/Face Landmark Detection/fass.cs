@@ -24,6 +24,19 @@ public class fass : MonoBehaviour
     [Tooltip("무표정 상태에서 측정한 눈 뜬 정도/얼굴너비 비율. 실측 후 조정하세요.")]
     public float neutralSurpriseRatio = 0.05f;
 
+    [Tooltip("무표정 상태에서 측정한 눈썹 사이 거리/얼굴너비 비율. 실측 후 조정하세요.")]
+    public float neutralAngryRatio = 0.23f;
+
+    [Header("자동 캘리브레이션")]
+    [Tooltip("캘리브레이션에 사용할 시간(초). 이 시간 동안 무표정을 유지해야 합니다.")]
+    public float calibrationDuration = 3f;
+
+    [Tooltip("캘리브레이션 시작 키. Play 모드에서 이 키를 누르면 자동 측정이 시작됩니다.")]
+    public KeyCode calibrationKey = KeyCode.Space;
+
+    private bool isCalibrating = false;
+    private List<Vector3> latestLandmarks = null;
+
     [Header("노이즈 완화 (이동평균)")]
     [Tooltip("저장 시점에 사용할 최근 프레임 점수의 개수. 클수록 부드럽지만 반응이 느려짐.")]
     public int smoothingWindowSize = 30;
@@ -65,6 +78,32 @@ public class fass : MonoBehaviour
         angryCount = 0;
     }
 
+    // ===================================================================
+    // [추가] 면접용 표정 종합 평가 시스템
+    // ===================================================================
+    [Header("표정 평가 시스템")]
+    [Tooltip("가장 최근 평가 등급 (UI 표시 등에서 참조 가능)")]
+    public ExpressionGrade latestGrade;
+
+    [Tooltip("가장 최근 평가 한줄 요약")]
+    public string latestEvaluationSummary = "";
+
+    [Tooltip("가장 최근 평가 상세 코멘트")]
+    public string latestEvaluationDetail = "";
+
+    [Tooltip("가장 최근 평가 점수 (0~5점 만점으로 정규화된 값)")]
+    public float latestEvaluationScore = 0f;
+
+    public enum ExpressionGrade
+    {
+        Excellent,  // 매우 안정적
+        Good,       // 안정적
+        Average,    // 보통
+        NeedsWork,  // 긴장 감지
+        Poor        // 불안정
+    }
+    // ===================================================================
+
     void OnEnable()
     {
         if (runner != null)
@@ -77,6 +116,15 @@ public class fass : MonoBehaviour
     {
         if (runner != null)
             runner.OnResultOutput -= HandleResult;
+    }
+
+    void Update()
+    {
+        // 캘리브레이션 시작 키 입력 감지 (Play 모드에서 무표정 상태로 눌러주세요)
+        if (Input.GetKeyDown(calibrationKey) && !isCalibrating)
+        {
+            StartCoroutine(CalibrateNeutralRatios());
+        }
     }
 
     // FaceLandmarkerResult -> List<Vector3> 변환
@@ -106,6 +154,8 @@ public class fass : MonoBehaviour
 
     public void OnFaceLandmarksDetected(List<Vector3> landmarks)
     {
+        latestLandmarks = landmarks; // 캘리브레이션 코루틴이 최신 랜드마크를 참조할 수 있도록 캐싱
+
         Debug.Log("[fass] 1단계 성공: 미디어파이프로부터 얼굴 좌표를 전달받았습니다!");
 
         if (landmarks == null)
@@ -159,13 +209,26 @@ public class fass : MonoBehaviour
         Debug.Log($"[fass][놀람] 이번 구간 평균:{surpriseScore:F2} | 누적 합계:{surpriseTotal:F1} | 누적 평균:{SurpriseAverage:F2} (총 {surpriseCount}회 기록)");
         Debug.Log($"[fass][분노] 이번 구간 평균:{angryScore:F2} | 누적 합계:{angryTotal:F1} | 누적 평균:{AngryAverage:F2} (총 {angryCount}회 기록)");
 
+        // ===================================================================
+        // [추가] 면접용 종합 평가 실행
+        // ===================================================================
+        var (grade, summary, detail, normalizedScore) = EvaluateExpression(smileScore, surpriseScore, angryScore);
+        latestGrade = grade;
+        latestEvaluationSummary = summary;
+        latestEvaluationDetail = detail;
+        latestEvaluationScore = normalizedScore;
+
+        Debug.Log($"[fass][평가] 종합 평가: {summary} ({normalizedScore:F1}/5.0)\n{detail}");
+        // ===================================================================
+
         if (csvLogger != null)
         {
             csvLogger.SaveScoreToCSV(
                 smileScore, surpriseScore, angryScore,
                 smileTotal, SmileAverage,
                 surpriseTotal, SurpriseAverage,
-                angryTotal, AngryAverage);
+                angryTotal, AngryAverage,
+                grade.ToString(), summary, detail, normalizedScore);
             Debug.Log("[fass] 3단계 성공: CSV Logger에 데이터 저장을 전송했습니다!");
         }
         else
@@ -179,7 +242,8 @@ public class fass : MonoBehaviour
                 smileScore, surpriseScore, angryScore,
                 smileTotal, SmileAverage,
                 surpriseTotal, SurpriseAverage,
-                angryTotal, AngryAverage);
+                angryTotal, AngryAverage,
+                grade.ToString(), summary, detail, normalizedScore);
             Debug.Log("[fass] 4단계 성공: DB Logger에 데이터 저장을 전송했습니다!");
         }
         else
@@ -211,15 +275,40 @@ public class fass : MonoBehaviour
         return sum / buffer.Count;
     }
 
+    // ===== Raw ratio 계산 (캘리브레이션과 점수 계산 양쪽에서 재사용) =====
+
+    private float GetRawSmileRatio(List<Vector3> landmarks)
+    {
+        float mouthHeight = Vector3.Distance(landmarks[13], landmarks[14]);
+        float faceWidth = Vector3.Distance(landmarks[234], landmarks[454]);
+        return mouthHeight / (faceWidth > 0 ? faceWidth : 1f);
+    }
+
+    private float GetRawSurpriseRatio(List<Vector3> landmarks)
+    {
+        float leftEyeOpen = Vector3.Distance(landmarks[159], landmarks[145]);
+        float rightEyeOpen = Vector3.Distance(landmarks[386], landmarks[374]);
+        float avgEyeOpen = (leftEyeOpen + rightEyeOpen) / 2f;
+        float faceWidth = Vector3.Distance(landmarks[234], landmarks[454]);
+        return avgEyeOpen / (faceWidth > 0 ? faceWidth : 1f);
+    }
+
+    private float GetRawAngryRatio(List<Vector3> landmarks)
+    {
+        float eyebrowDist = Vector3.Distance(landmarks[55], landmarks[285]);
+        float faceWidth = Vector3.Distance(landmarks[234], landmarks[454]);
+        return eyebrowDist / (faceWidth > 0 ? faceWidth : 1f);
+    }
+
+    // ===== 점수 계산 (raw ratio를 baseline과 비교 후 증폭) =====
+
     // [수정] mouthWidth 대신 faceWidth로 정규화 -> Surprise/Angry와 기준 통일.
     // 기존 방식(mouthHeight / mouthWidth)은 웃을 때 입이 가로로도 벌어지면서
     // 분모가 같이 커져 ratio 증가폭이 둔해지는 문제가 있었음.
     // [수정] neutralSmileRatio를 빼서 무표정 상태의 baseline을 0으로 맞춤.
     private float CalculateSmile(List<Vector3> landmarks)
     {
-        float mouthHeight = Vector3.Distance(landmarks[13], landmarks[14]);
-        float faceWidth = Vector3.Distance(landmarks[234], landmarks[454]);
-        float ratio = mouthHeight / (faceWidth > 0 ? faceWidth : 1f);
+        float ratio = GetRawSmileRatio(landmarks);
 
         // TODO: 아래 계수(35f)는 실제 테스트 데이터를 보며 재조정 필요.
         // 무표정/활짝 웃는 표정일 때 ratio 값을 각각 Debug.Log로 확인한 뒤 배율 조정 권장.
@@ -230,15 +319,7 @@ public class fass : MonoBehaviour
     // [수정] neutralSurpriseRatio를 빼서 무표정 상태의 baseline을 0으로 맞춤.
     private float CalculateSurprise(List<Vector3> landmarks)
     {
-        // 눈 뜬 정도(절대 거리)
-        float leftEyeOpen = Vector3.Distance(landmarks[159], landmarks[145]);
-        float rightEyeOpen = Vector3.Distance(landmarks[386], landmarks[374]);
-        float avgEyeOpen = (leftEyeOpen + rightEyeOpen) / 2f;
-
-        // 얼굴 너비로 정규화 -> 카메라 거리/얼굴 크기 영향을 줄여서
-        // SurpriseScore가 표정과 무관하게 포화되는 문제를 완화
-        float faceWidth = Vector3.Distance(landmarks[234], landmarks[454]);
-        float ratio = avgEyeOpen / (faceWidth > 0 ? faceWidth : 1f);
+        float ratio = GetRawSurpriseRatio(landmarks);
 
         // TODO: 아래 계수(50f)는 실제 테스트 데이터를 보며 재조정 필요.
         // 평상시 표정과 놀란 표정일 때의 ratio 값을 각각 Debug.Log로 확인한 뒤
@@ -249,10 +330,141 @@ public class fass : MonoBehaviour
 
     private float CalculateAngry(List<Vector3> landmarks)
     {
-        float eyebrowDist = Vector3.Distance(landmarks[55], landmarks[285]);
-        float faceWidth = Vector3.Distance(landmarks[234], landmarks[454]);
-        float ratio = eyebrowDist / (faceWidth > 0 ? faceWidth : 1f);
-        float score = (0.23f - ratio) * 60f;
+        float ratio = GetRawAngryRatio(landmarks);
+        float score = (neutralAngryRatio - ratio) * 60f;
         return Mathf.Clamp(score, 0f, 5f);
+    }
+
+    // ===================================================================
+    // [추가] 종합 평가 (면접 상황 기준)
+    // ===================================================================
+    // TODO: 아래 계수와 임계값은 실제 면접 시뮬레이션 데이터를 보며 재조정 필요.
+    // 면접 컨텍스트에서는 "긍정적 감정이 많을수록 좋다"가 아니라
+    // "침착하고 안정된 인상을 주는가"가 핵심 기준.
+    private (ExpressionGrade grade, string summary, string detail, float normalizedScore) EvaluateExpression(
+        float smile, float surprise, float angry)
+    {
+        // 1) 분노/찌푸림: 클수록 감점 (방어적/긴장된 인상)
+        float angryPenalty = angry * 1.5f;
+
+        // 2) 놀람: 면접에서는 놀람=당황/동요로 해석. 낮을수록(차분할수록) 좋음.
+        float surprisePenalty = surprise * 0.8f;
+
+        // 3) 미소: 적당한 수준(1.5~3점)이 이상적. 너무 없으면 딱딱해 보이고,
+        //    너무 과하면 부자연스럽거나 긴장을 감추려는 것처럼 보일 수 있음.
+        float smileBonus;
+        if (smile < 1.5f)
+            smileBonus = smile * 0.6f; // 미소 부족 -> 약한 가점
+        else if (smile <= 3f)
+            smileBonus = 1f + (smile - 1.5f) * 1f; // 적당 구간 -> 최대 가점
+        else
+            smileBonus = 2.5f - (smile - 3f) * 0.5f; // 과도한 미소 -> 가점 감소
+
+        float totalScore = smileBonus - angryPenalty - surprisePenalty;
+
+        // [추가] totalScore(대략 -11.5 ~ +2.5 범위)를 0~5점으로 정규화.
+        // 등급 구간의 상한(1.5 = Excellent 시작점)과 하한(-1.5 = Poor 시작점)을
+        // 각각 5점/0점 기준으로 매핑해서, 숫자 점수와 등급이 서로 어긋나지 않게 함.
+        // TODO: 실측 데이터를 보며 아래 -1.5f/1.5f 기준값(등급 임계값과 동일)을 재조정 가능.
+        const float normMin = -1.5f;
+        const float normMax = 1.5f;
+        float normalizedScore = (totalScore - normMin) / (normMax - normMin) * 5f;
+        normalizedScore = Mathf.Clamp(normalizedScore, 0f, 5f);
+
+        ExpressionGrade grade;
+        string summary;
+        var detail = new System.Text.StringBuilder();
+
+        if (totalScore >= 1.5f)
+        {
+            grade = ExpressionGrade.Excellent;
+            summary = "매우 안정적";
+            detail.AppendLine("침착하고 신뢰감 있는 표정을 유지하고 있습니다. 면접관에게 좋은 인상을 줄 가능성이 높습니다.");
+        }
+        else if (totalScore >= 0.5f)
+        {
+            grade = ExpressionGrade.Good;
+            summary = "안정적";
+            detail.AppendLine("전반적으로 무난하고 안정된 표정입니다.");
+        }
+        else if (totalScore >= -0.5f)
+        {
+            grade = ExpressionGrade.Average;
+            summary = "보통";
+            detail.AppendLine("특별한 문제는 없으나, 조금 더 여유 있는 인상을 위해 표정을 다듬어보세요.");
+        }
+        else if (totalScore >= -1.5f)
+        {
+            grade = ExpressionGrade.NeedsWork;
+            summary = "긴장 감지";
+            detail.AppendLine("긴장하거나 동요하는 표정이 감지되었습니다. 심호흡을 하고 속도를 조절해보세요.");
+        }
+        else
+        {
+            grade = ExpressionGrade.Poor;
+            summary = "불안정";
+            detail.AppendLine("면접 태도에 부정적으로 작용할 수 있는 표정 변화가 감지되었습니다.");
+        }
+
+        // 개별 감정별 세부 코멘트 (면접 관점)
+        if (angry >= 2.5f)
+            detail.AppendLine($"- 미간/눈썹에 긴장이 감지됩니다 ({angry:F1}/5). 질문을 들을 때 표정을 편하게 풀어보세요.");
+        if (surprise >= 3f)
+            detail.AppendLine($"- 예상 밖 반응이 자주 감지됩니다 ({surprise:F1}/5). 답변 전 잠깐의 여유를 가져보세요.");
+        if (smile < 0.5f)
+            detail.AppendLine($"- 표정이 다소 경직되어 있습니다 ({smile:F1}/5). 자연스러운 미소를 시도해보세요.");
+        if (smile > 4f)
+            detail.AppendLine($"- 미소가 다소 과도하게 유지되고 있습니다 ({smile:F1}/5). 상황에 맞는 톤 조절이 필요할 수 있습니다.");
+
+        return (grade, summary, detail.ToString(), normalizedScore);
+    }
+    // ===================================================================
+
+    // ===== 자동 캘리브레이션 =====
+
+    // Play 모드에서 calibrationKey(기본 Space)를 누르면 실행됨.
+    // calibrationDuration(기본 3초) 동안 무표정을 유지해야 정확하게 측정됨.
+    private System.Collections.IEnumerator CalibrateNeutralRatios()
+    {
+        isCalibrating = true;
+        Debug.Log($"[fass] 캘리브레이션 시작! {calibrationDuration}초 동안 무표정을 유지해주세요...");
+
+        float smileSum = 0f;
+        float surpriseSum = 0f;
+        float angrySum = 0f;
+        int sampleCount = 0;
+        float elapsed = 0f;
+
+        while (elapsed < calibrationDuration)
+        {
+            if (latestLandmarks != null && latestLandmarks.Count >= 468)
+            {
+                smileSum += GetRawSmileRatio(latestLandmarks);
+                surpriseSum += GetRawSurpriseRatio(latestLandmarks);
+                angrySum += GetRawAngryRatio(latestLandmarks);
+                sampleCount++;
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null; // 다음 프레임까지 대기
+        }
+
+        if (sampleCount > 0)
+        {
+            neutralSmileRatio = smileSum / sampleCount;
+            neutralSurpriseRatio = surpriseSum / sampleCount;
+            neutralAngryRatio = angrySum / sampleCount;
+
+            Debug.Log($"[fass] 캘리브레이션 완료! (샘플 {sampleCount}개)\n" +
+                       $"neutralSmileRatio = {neutralSmileRatio:F4}\n" +
+                       $"neutralSurpriseRatio = {neutralSurpriseRatio:F4}\n" +
+                       $"neutralAngryRatio = {neutralAngryRatio:F4}");
+        }
+        else
+        {
+            Debug.LogWarning("[fass] 캘리브레이션 실패: 유효한 랜드마크 샘플을 얻지 못했습니다. 얼굴이 카메라에 잘 잡히는지 확인하세요.");
+        }
+
+        isCalibrating = false;
     }
 }
