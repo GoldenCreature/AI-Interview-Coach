@@ -1,8 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System;
 using UnityEngine;
 using UnityEngine.UI;
-using MuteKeySetting.Scripts;
+using GoogleSpeechToText.Scripts;
 
 namespace InterviewMute.Scripts
 {
@@ -14,78 +13,61 @@ namespace InterviewMute.Scripts
         [SerializeField] private Sprite micOffSprite;
 
         [Header("--- 마이크 상태 ---")]
-        public bool isMuted = false;
-
-        private KeyCode muteKey = KeyCode.Space;
-        private const string SAVE_KEY_NAME = "MuteKeyCode";
+        public bool isMuted = true; // 기본값: 녹음 중 아님
 
         private void OnEnable()
         {
-            // 설정 창에서 [적용]을 누를 때 발생하는 이벤트 구독
-            MuteKeySetting.Scripts.MuteKeySetting.OnMuteKeyChanged += LoadMuteKey;
-
-            LoadMuteKey();
+            // SpeechToTextManager 녹음 이벤트 구독
+            // 녹음 시작/종료 시 마이크 아이콘 자동 변경
+            SpeechToTextManager.OnRecordingStarted += HandleRecordingStarted;
+            SpeechToTextManager.OnRecordingStopped += HandleRecordingStopped;
         }
 
         private void OnDisable()
         {
             // 이벤트 구독 해제
-            MuteKeySetting.Scripts.MuteKeySetting.OnMuteKeyChanged -= LoadMuteKey;
+            SpeechToTextManager.OnRecordingStarted -= HandleRecordingStarted;
+            SpeechToTextManager.OnRecordingStopped -= HandleRecordingStopped;
         }
 
         private void Start()
         {
+            // 시작 시 기본 아이콘 표시 (마이크 Off 상태)
             UpdateMicUI();
         }
 
-        private void Update()
+        // -----------------------------------------------
+        // 녹음 시작 시 자동 호출
+        // 마이크 아이콘 On으로 변경
+        // -----------------------------------------------
+        private void HandleRecordingStarted()
         {
-            // 최신화된 음소거 키 입력 감지
-            if (Input.GetKeyDown(muteKey))
-            {
-                ToggleMute();
-            }
-        }
-
-        public void LoadMuteKey()
-        {
-            string savedKey = PlayerPrefs.GetString(SAVE_KEY_NAME, KeyCode.Space.ToString());
-
-            if (System.Enum.TryParse(savedKey, out KeyCode loadedKey))
-            {
-                muteKey = loadedKey;
-            }
-            else
-            {
-                muteKey = KeyCode.Space;
-            }
-
-            Debug.Log($"[면접 화면] 최신 음소거 키 감지 완료: {muteKey}");
-        }
-
-        public void ToggleMute()
-        {
-            isMuted = !isMuted;
+            isMuted = false;
             UpdateMicUI();
-
-            if (isMuted)
-            {
-                Debug.Log($"[면접] 마이크 음소거 ON ({muteKey} 키)");
-            }
-            else
-            {
-                Debug.Log($"[면접] 마이크 음소거 OFF ({muteKey} 키)");
-            }
+            Debug.Log("[InterviewMuteController] 마이크 ON");
         }
 
+        // -----------------------------------------------
+        // 녹음 종료 시 자동 호출
+        // 마이크 아이콘 Off로 변경
+        // -----------------------------------------------
+        private void HandleRecordingStopped()
+        {
+            isMuted = true;
+            UpdateMicUI();
+            Debug.Log("[InterviewMuteController] 마이크 OFF");
+        }
+
+        // -----------------------------------------------
+        // 마이크 아이콘 UI 업데이트
+        // isMuted 상태에 따라 스프라이트 변경
+        // -----------------------------------------------
         private void UpdateMicUI()
         {
             if (micImage == null) return;
 
             if (micOnSprite != null && micOffSprite != null)
-            {
                 micImage.sprite = isMuted ? micOffSprite : micOnSprite;
-            }
         }
     }
 }

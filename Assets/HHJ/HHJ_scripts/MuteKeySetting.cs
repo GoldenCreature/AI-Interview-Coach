@@ -1,10 +1,11 @@
-﻿using System.Collections;
+﻿using HJS;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.EventSystems;
-using System;
+using UnityEngine.UI;
 
 namespace MuteKeySetting.Scripts
 {
@@ -63,17 +64,20 @@ namespace MuteKeySetting.Scripts
             }
         }
 
-        // [적용] 버튼 클릭 이벤트
         public void OnClickApplyButton()
         {
             currentMuteKey = tempKey;
+
+            // PlayerPrefs에 저장 (앱 재실행 시 유지)
             SaveMuteKey();
+
+            // SettingsManager에도 동기화
+            // SpeechToTextManager가 이 값을 사용해 마이크 입력 감지
+            SettingsManager.Instance.SetMicKey(currentMuteKey);
+
             UpdateUI();
-
-            // [핵심] [적용] 클릭 시 키가 변경되었다고 전국(이벤트를 듣고 있는 곳)에 방송!
             OnMuteKeyChanged?.Invoke();
-
-            Debug.Log($"[음소거 키 저장 및 적용 완료] 변경된 키: {currentMuteKey}");
+            Debug.Log($"[음소거 키 적용 완료] 변경된 키: {currentMuteKey}");
         }
 
         private void SaveMuteKey()
@@ -84,18 +88,19 @@ namespace MuteKeySetting.Scripts
 
         public void LoadMuteKey()
         {
+            // PlayerPrefs에서 저장된 키 불러오기
             string savedKey = PlayerPrefs.GetString(SAVE_KEY_NAME, KeyCode.Space.ToString());
 
             if (Enum.TryParse(savedKey, out KeyCode loadedKey))
-            {
                 currentMuteKey = loadedKey;
-            }
             else
-            {
                 currentMuteKey = KeyCode.Space;
-            }
 
             tempKey = currentMuteKey;
+
+            // SettingsManager에도 동기화
+            // 앱 시작 시 저장된 키값이 SpeechToTextManager에 반영됨
+            SettingsManager.Instance.SetMicKey(currentMuteKey);
         }
 
         private void UpdateUI()
