@@ -1,3 +1,4 @@
+using HJS;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,19 +10,19 @@ namespace MainUI.Scripts
     {
         public void PlayBtn()
         {
-            SceneManager.LoadScene("Interviewer");
+            GameManager.Instance.LoadInterviewSetupScene();
         }
         public void SettingBtn()
         {
-            SceneManager.LoadScene("Setting");
+            GameManager.Instance.LoadSettingScene();
         }
         public void ExitBtn()
         {
-            Application.Quit();
+            GameManager.Instance.QuitApplication();
         }
         public void FeedbackBtn()
         {
-            SceneManager.LoadScene("FeedBack");
+            GameManager.Instance.LoadFeedbackScene();
         }
     }
 }
