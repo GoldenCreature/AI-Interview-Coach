@@ -50,26 +50,22 @@ public class FaceScoreDBLogger : MonoBehaviour
     }
 
     /// <summary>
-    /// [수정] 감정별(기쁨/놀람/분노) 누적 합계·평균 값도 함께 저장하도록 확장
+    /// [간소화] 이번 구간 점수 3개 + 종합 평가(등급/상세/점수)만 저장
     /// </summary>
     public void SaveScoreToDB(
-        float smile, float surprise, float angry,
-        float smileTotal, float smileAverage,
-        float surpriseTotal, float surpriseAverage,
-        float angryTotal, float angryAverage)
+        float smileScore, float surpriseScore, float angryScore,
+        string evaluationGrade, string evaluationDetail,
+        float evaluationScore)
     {
         var entry = new FaceScoreEntry
         {
             Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-            SmileScore = smile,
-            SurpriseScore = surprise,
-            AngryScore = angry,
-            SmileTotal = smileTotal,
-            SmileAverage = smileAverage,
-            SurpriseTotal = surpriseTotal,
-            SurpriseAverage = surpriseAverage,
-            AngryTotal = angryTotal,
-            AngryAverage = angryAverage
+            SmileScore = smileScore,
+            SurpriseScore = surpriseScore,
+            AngryScore = angryScore,
+            EvaluationGrade = evaluationGrade,
+            EvaluationDetail = evaluationDetail,
+            EvaluationScore = evaluationScore
         };
 
         db.Insert(entry); // sqlite-net 내부적으로 thread-safe하게 처리됨
