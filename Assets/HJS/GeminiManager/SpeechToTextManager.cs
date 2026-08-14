@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using System;
 
 namespace GoogleSpeechToText.Scripts
 {
@@ -10,6 +11,11 @@ namespace GoogleSpeechToText.Scripts
     {
         // API 키는 SettingsManager에서 가져옴
         private string ApiKey => SettingsManager.Instance.GoogleApiKey;
+
+        // 녹음 시작/종료 이벤트
+        // 구독자: InterviewMuteController (마이크 아이콘 변경)
+        public static event Action OnRecordingStarted;
+        public static event Action OnRecordingStopped;
 
         private AudioClip clip;
         private byte[] bytes;
@@ -34,6 +40,9 @@ namespace GoogleSpeechToText.Scripts
         {
             clip = Microphone.Start(null, false, 60, 44100);
             recording = true;
+
+            // 마이크 아이콘 On 알림
+            OnRecordingStarted?.Invoke();
         }
 
         private byte[] EncodeAsWAV(float[] samples, int frequency, int channels)
@@ -68,6 +77,10 @@ namespace GoogleSpeechToText.Scripts
         {
             var position = Microphone.GetPosition(null);
             Microphone.End(null);
+
+            // 마이크 아이콘 Off 알림
+            OnRecordingStopped?.Invoke();
+
             var samples = new float[position * clip.channels];
             clip.GetData(samples, 0);
             bytes = EncodeAsWAV(samples, clip.frequency, clip.channels);
