@@ -14,10 +14,10 @@ namespace ResultUI.Scripts
         // TODO: [한효준] 평가 결과 표시 UI 연결
         [SerializeField] private TextMeshProUGUI evaluationResultText;
 
-        [Header("--- 로딩 표시 ---")]
+        //[Header("--- 로딩 표시 ---")]
         // 평가 결과 기다리는 동안 표시할 패널 (선택사항)
         // TODO: [한효준] 로딩 패널 UI 연결
-        [SerializeField] private GameObject loadingPanel;
+        //[SerializeField] private GameObject loadingPanel;
 
         private void Start()
         {
@@ -28,8 +28,8 @@ namespace ResultUI.Scripts
 
             // 평가 결과는 비동기로 오기 때문에
             // 로딩 패널을 먼저 활성화
-            if (loadingPanel != null)
-                loadingPanel.SetActive(true);
+            //if (loadingPanel != null)
+            //    loadingPanel.SetActive(true);
         }
 
         private void OnEnable()
@@ -58,8 +58,8 @@ namespace ResultUI.Scripts
             Debug.Log("[Result] 평가 결과 수신 완료");
 
             // 로딩 패널 비활성화
-            if (loadingPanel != null)
-                loadingPanel.SetActive(false);
+            //if (loadingPanel != null)
+            //    loadingPanel.SetActive(false);
 
             // 평가 결과 텍스트 표시
             if (evaluationResultText != null)
@@ -140,9 +140,9 @@ namespace ResultUI.Scripts
         }
 
         // [다시 면접] 버튼 (선택사항)
-        public void RetryBtn()
-        {
-            GameManager.Instance.LoadInterviewSetupScene();
-        }
+        //public void RetryBtn()
+        //{
+        //    GameManager.Instance.LoadInterviewSetupScene();
+        //}
     }
 }
