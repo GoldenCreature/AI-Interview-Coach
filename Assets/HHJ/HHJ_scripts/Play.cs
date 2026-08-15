@@ -18,32 +18,35 @@ namespace PlayUI.Scripts
         [SerializeField] private GameObject settingsPopup;
         [SerializeField] private WebCamOptionUI.Scripts.WebCamOption webCamController;
 
-
         private void OnEnable()
         {
-            // 면접 종료 이벤트 구독
-            // UIManager 대신 Play.cs가 직접
-            // 타이머 정지 및 시간 저장 담당
             InterviewManager.OnInterviewEnded += HandleInterviewEnded;
         }
 
         private void OnDisable()
         {
-            // 이벤트 구독 해제
             InterviewManager.OnInterviewEnded -= HandleInterviewEnded;
         }
 
-        // -----------------------------------------------
-        // 면접 종료 시 타이머만 정지
-        // 시간 저장 X (Result 씬에 타이머 표시 없음)
-        // -----------------------------------------------
         private void HandleInterviewEnded(InterviewResultData resultData)
         {
-            Debug.Log("[Play] 면접 종료 감지 → 타이머 정지");
+            Debug.Log("[Play] 면접 종료 감지 → 타이머 정지 및 데이터 저장");
             PauseTimer();
+
+            // [핵심] 서로 다른 씬이므로 FeedbackManager에 추가하여 파일 저장
+            if (FeedbackManager.Instance != null)
+            {
+                FeedbackData newData = new FeedbackData
+                {
+                    dateText = System.DateTime.Now.ToString("yyyy-MM-dd"),
+                    jobText = InterviewManager.Instance != null ? InterviewManager.Instance.SelectedJob.ToString() : "IT",
+                    typeText = InterviewManager.Instance != null ? InterviewManager.Instance.SelectedInterviewerType.ToString() : "일상적"
+                };
+
+                FeedbackManager.Instance.AddFeedback(newData);
+            }
         }
 
-        // [설정] 버튼 → 팝업 열기 + 타이머 정지 + 웹캠 테스트 시작
         public void OnClickSettings()
         {
             if (settingsPopup != null)
@@ -56,7 +59,6 @@ namespace PlayUI.Scripts
             }
         }
 
-        // [설정 닫기] 버튼 → 팝업 닫기 + 타이머 재개 + 웹캠 테스트 종료
         public void OnClickCloseSettings()
         {
             if (settingsPopup != null)
@@ -69,11 +71,6 @@ namespace PlayUI.Scripts
             }
         }
 
-        // 면접 종료 버튼
-        // 직접 씬 전환 대신 EndInterview() 호출
-        // → OnInterviewEnded 이벤트 발생
-        // → UIManager가 자동으로 씬 전환 처리
-        // → Play.cs가 자동으로 타이머 정지 처리
         public void ResultBtn()
         {
             InterviewManager.Instance.EndInterview();
