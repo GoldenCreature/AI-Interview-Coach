@@ -607,20 +607,31 @@ namespace HJS
             // Gemini에게 보낼 종합 평가 요청 메시지
             string evaluationPrompt =
                 $"지금까지의 면접이 모두 끝났습니다.\n" +
-                $"아래 기준으로 지원자를 종합 평가해주세요.\n\n" +
+                $"아래 데이터를 기반으로 지원자를 영역별로 평가해주세요.\n\n" +
+
                 $"[말버릇 감지 결과]\n{fillerSummary}\n\n" +
-                $"[태도 점수]\n{resultData.AttitudeScore}점 (MediaPipe 측정)\n\n" +
-                $"[평가 항목]\n" +
-                $"1. 답변 내용의 충실도 (30점)\n" +
-                $"2. 논리적 구성력 (30점)\n" +
-                $"3. 의사소통 능력 (20점)\n" +
-                $"4. 말버릇 및 화법 (20점)\n\n" +
+
+                $"[평가 기준]\n" +
+                $"1. 음성 영역 (5점 만점)\n" +
+                $"   - 발화습관: 말버릇 횟수와 빈도를 기반으로 평가\n" +
+                $"   - 화법: 답변의 명확성, 전달력, 문장 구성\n\n" +
+                $"2. 내용 영역 (5점 만점)\n" +
+                $"   - 직무 관련 지식: 선택 직종({resultData.Job})에 맞는 전문 지식 포함 여부\n" +
+                $"   - 답변 충실도: 질문에 대한 구체적이고 충분한 답변 여부\n" +
+                $"   - 질문 의도 이해: 면접관의 질문 의도를 파악하고 답변했는지\n" +
+                $"   - 논리성: 횡설수설 없이 논리적으로 답변했는지\n\n" +
+
                 $"[출력 형식]\n" +
-                $"총점: XX점\n" +
-                $"항목별 점수: 각 항목 점수 요약\n" +
-                $"강점: (2~3가지)\n" +
-                $"개선점: (2~3가지)\n" +
-                $"한 줄 총평: (한 문장 요약)";
+                $"반드시 아래 형식을 정확히 지켜서 출력하세요.\n" +
+                $"다른 내용을 추가하지 마세요.\n\n" +
+                $"[음성영역]\n" +
+                $"점수: X/5\n" +
+                $"평가결과: (2~3문장)\n" +
+                $"개선사항: (2~3가지)\n\n" +
+                $"[내용영역]\n" +
+                $"점수: X/5\n" +
+                $"평가결과: (2~3문장)\n" +
+                $"개선사항: (2~3가지)";
 
             Content evaluationRequest = new Content
             {
@@ -658,9 +669,16 @@ namespace HJS
                         string evaluationResult = response.candidates[0].content.parts[0].text;
                         Debug.Log("=== 종합 평가 결과 ===\n" + evaluationResult);
 
-                        // 평가 결과를 UIManager를 통해 Result.cs로 전달
-                        // UIManager → InterviewManager.NotifyEvaluationReceived()
-                        // → Result.cs.HandleEvaluationReceived() 자동 실행
+                        // 평가 결과 파싱
+                        // 음성/내용 영역 점수, 평가결과, 개선사항 분리
+                        ParseEvaluationResult(evaluationResult, resultData);
+
+                        // TODO: [이재혁] DB 연동 완료 후
+                        // 현재 흐름: 파싱된 데이터 임시 보관 → Result 씬에서 꺼내 표시
+                        // 최종 흐름: DB 저장 → Result 씬 이동 → DB에서 읽어서 표시
+                        InterviewManager.Instance.SetEvaluationResult(resultData);
+
+                        // 평가 결과 전체 텍스트를 Result.cs로 전달
                         UIManager.Instance.ShowResult(evaluationResult);
                     }
                     else
@@ -669,6 +687,88 @@ namespace HJS
                     }
                 }
             }
+        }
+
+        // -----------------------------------------------
+        // Gemini 평가 결과 파싱
+        // [음성영역], [내용영역] 섹션을 분리해서
+        // InterviewResultData에 저장
+        // -----------------------------------------------
+        private void ParseEvaluationResult(string evaluationResult, InterviewResultData resultData)
+        {
+            try
+            {
+                if (!evaluationResult.Contains("[음성영역]") ||
+                    !evaluationResult.Contains("[내용영역]"))
+                {
+                    Debug.LogWarning("[GeminiManager] 평가 결과 형식이 올바르지 않습니다.");
+                    return;
+                }
+
+                // 음성 영역 섹션 추출
+                int voiceStart = evaluationResult.IndexOf("[음성영역]") + "[음성영역]".Length;
+                int voiceEnd = evaluationResult.IndexOf("[내용영역]");
+                string voiceSection = evaluationResult.Substring(voiceStart, voiceEnd - voiceStart).Trim();
+
+                // 내용 영역 섹션 추출
+                int contentStart = evaluationResult.IndexOf("[내용영역]") + "[내용영역]".Length;
+                string contentSection = evaluationResult.Substring(contentStart).Trim();
+
+                // 음성 영역 파싱
+                string voiceScoreStr = ExtractValue(voiceSection, "점수:");
+                resultData.VoiceScore = ParseScore(voiceScoreStr);
+                resultData.VoiceResult = ExtractValue(voiceSection, "평가결과:");
+                resultData.VoiceImprovement = ExtractValue(voiceSection, "개선사항:");
+
+                // 내용 영역 파싱
+                string contentScoreStr = ExtractValue(contentSection, "점수:");
+                resultData.ContentScore = ParseScore(contentScoreStr);
+                resultData.ContentResult = ExtractValue(contentSection, "평가결과:");
+                resultData.ContentImprovement = ExtractValue(contentSection, "개선사항:");
+
+                Debug.Log($"[GeminiManager] 음성 영역 점수: {resultData.VoiceScore}/5");
+                Debug.Log($"[GeminiManager] 내용 영역 점수: {resultData.ContentScore}/5");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[GeminiManager] 평가 결과 파싱 실패: {e.Message}");
+            }
+        }
+
+        // -----------------------------------------------
+        // 섹션에서 특정 키의 값을 추출
+        // 예: "점수: 3/5" → "3/5"
+        // -----------------------------------------------
+        private string ExtractValue(string section, string key)
+        {
+            int keyIndex = section.IndexOf(key);
+            if (keyIndex == -1) return "";
+
+            int valueStart = keyIndex + key.Length;
+            int valueEnd = section.IndexOf("\n", valueStart);
+
+            if (valueEnd == -1)
+                return section.Substring(valueStart).Trim();
+
+            return section.Substring(valueStart, valueEnd - valueStart).Trim();
+        }
+
+        // -----------------------------------------------
+        // 점수 문자열에서 숫자만 추출
+        // 예: "3/5" → 3
+        // -----------------------------------------------
+        private int ParseScore(string scoreStr)
+        {
+            if (string.IsNullOrEmpty(scoreStr)) return 0;
+
+            int slashIndex = scoreStr.IndexOf('/');
+            if (slashIndex > 0)
+                scoreStr = scoreStr.Substring(0, slashIndex).Trim();
+
+            if (int.TryParse(scoreStr, out int score))
+                return Mathf.Clamp(score, 0, 5);
+
+            return 0;
         }
     }
 }
