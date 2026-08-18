@@ -63,6 +63,16 @@ namespace HJS
         // 선택된 면접관 유형
         public InterviewerType SelectedInterviewerType { get; private set; }
 
+        // 평가 결과 임시 보관
+        // TODO: [이재혁] DB 연동 완료 후 제거
+        public InterviewResultData EvaluationResult { get; private set; }
+
+        public void SetEvaluationResult(InterviewResultData resultData)
+        {
+            EvaluationResult = resultData;
+            Debug.Log("[InterviewManager] 평가 결과 임시 저장 완료");
+        }
+
         // 태도 점수 (신모세 MediaPipe에서 설정)
         private int _attitudeScore;
 
@@ -197,7 +207,25 @@ namespace HJS
         public JobCategory Job;              // 직종
         public InterviewerType InterviewerType; // 면접관 유형
         public int AttitudeScore;            // 태도 점수 (MediaPipe)
+
+        // -----------------------------------------------
+        // 음성 영역 평가 결과
+        // Gemini 평가 후 ParseEvaluationResult()에서 채워짐
+        // -----------------------------------------------
+        public int VoiceScore;               // 음성 영역 점수 (5점 만점)
+        public string VoiceResult;           // 음성 영역 평가결과
+        public string VoiceImprovement;      // 음성 영역 개선사항
+
+        // -----------------------------------------------
+        // 내용 영역 평가 결과
+        // Gemini 평가 후 ParseEvaluationResult()에서 채워짐
+        // -----------------------------------------------
+        public int ContentScore;             // 내용 영역 점수 (5점 만점)
+        public string ContentResult;         // 내용 영역 평가결과
+        public string ContentImprovement;    // 내용 영역 개선사항
+
         // 말버릇 카운트는 FillerWordDetector에서 직접 꺼냄
         // 대화 기록은 GeminiManager의 chatHistory에서 직접 꺼냄
+        // TODO: [이재혁] DB 저장 시 위 데이터 전달 필요
     }
 }
