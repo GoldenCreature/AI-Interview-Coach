@@ -28,27 +28,32 @@ namespace Mediapipe.Unity.Sample.FaceLandmarkDetection
       _textureFramePool = null;
     }
 
-    protected override IEnumerator Run()
-    {
-      Debug.Log($"Delegate = {config.Delegate}");
-      Debug.Log($"Image Read Mode = {config.ImageReadMode}");
-      Debug.Log($"Running Mode = {config.RunningMode}");
-      Debug.Log($"NumFaces = {config.NumFaces}");
-      Debug.Log($"MinFaceDetectionConfidence = {config.MinFaceDetectionConfidence}");
-      Debug.Log($"MinFacePresenceConfidence = {config.MinFacePresenceConfidence}");
-      Debug.Log($"MinTrackingConfidence = {config.MinTrackingConfidence}");
-      Debug.Log($"OutputFaceBlendshapes = {config.OutputFaceBlendshapes}");
-      Debug.Log($"OutputFacialTransformationMatrixes = {config.OutputFacialTransformationMatrixes}");
+        protected override IEnumerator Run()
+        {
+            // ImageSourceProvider가 아직 준비되지 않았다면 (Bootstrap 초기화 미완료) 대기
+            yield return new WaitUntil(() => ImageSourceProvider.ImageSource != null);
 
-      yield return AssetLoader.PrepareAssetAsync(config.ModelPath);
+            Debug.Log($"Delegate = {config.Delegate}");
+            Debug.Log($"Image Read Mode = {config.ImageReadMode}");
+            Debug.Log($"Running Mode = {config.RunningMode}");
+            Debug.Log($"NumFaces = {config.NumFaces}");
+            Debug.Log($"MinFaceDetectionConfidence = {config.MinFaceDetectionConfidence}");
+            Debug.Log($"MinFacePresenceConfidence = {config.MinFacePresenceConfidence}");
+            Debug.Log($"MinTrackingConfidence = {config.MinTrackingConfidence}");
+            Debug.Log($"OutputFaceBlendshapes = {config.OutputFaceBlendshapes}");
+            Debug.Log($"OutputFacialTransformationMatrixes = {config.OutputFacialTransformationMatrixes}");
 
-      var options = config.GetFaceLandmarkerOptions(config.RunningMode == Tasks.Vision.Core.RunningMode.LIVE_STREAM ? OnFaceLandmarkDetectionOutput : null);
-      taskApi = FaceLandmarker.CreateFromOptions(options, GpuManager.GpuResources);
-      var imageSource = ImageSourceProvider.ImageSource;
+            yield return AssetLoader.PrepareAssetAsync(config.ModelPath);
 
-      yield return imageSource.Play();
+            var options = config.GetFaceLandmarkerOptions(config.RunningMode == Tasks.Vision.Core.RunningMode.LIVE_STREAM ? OnFaceLandmarkDetectionOutput : null);
+            taskApi = FaceLandmarker.CreateFromOptions(options, GpuManager.GpuResources);
+            var imageSource = ImageSourceProvider.ImageSource;
 
-      if (!imageSource.isPrepared)
+            yield return imageSource.Play();
+
+            // ... 이하 기존 코드 그대로
+
+            if (!imageSource.isPrepared)
       {
         Debug.LogError("Failed to start ImageSource, exiting...");
         yield break;
