@@ -1,52 +1,57 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Mediapipe.Unity.Sample;
 
 namespace WebCamControllerUI.Scripts
 {
     public class WebCamController : MonoBehaviour
     {
         [Header("UI 연결")]
-        [SerializeField] private RawImage webcamDisplay;       // 카메라 화면을 띄울 RawImage
-        [SerializeField] private TextMeshProUGUI warningText;   // 경고 문구 텍스트
+        [SerializeField] private RawImage webcamDisplay;
+        [SerializeField] private TextMeshProUGUI warningText;
 
-        private WebCamTexture webcamTexture;
+        [Tooltip("카메라 오픈 대기 최대 시간(초)")]
+        [SerializeField] private float waitTimeoutSeconds = 10f;
 
         private void Start()
         {
-            InitializeWebCam();
+            StartCoroutine(WaitForMediaPipeCameraAndDisplay());
         }
 
-        public void InitializeWebCam()
+        private IEnumerator WaitForMediaPipeCameraAndDisplay()
         {
-            // 1. 연결된 웹캠 장치 검색
-            WebCamDevice[] devices = WebCamTexture.devices;
-
-            // 2. 웹캠이 없거나 연결되지 않은 경우
-            if (devices.Length == 0)
+            if (WebCamTexture.devices.Length == 0)
             {
                 ShowNoCameraState("웹캠이 연결되지 않았습니다.\n카메라를 연결해 주세요.");
-                return;
+                yield break;
             }
 
-            // 3. 웹캠이 연결되어 있는 경우 (첫 번째 카메라 사용)
-            try
-            {
-                webcamTexture = new WebCamTexture(devices[0].name, 1280, 720, 30);
-                webcamDisplay.texture = webcamTexture;
-                webcamTexture.Play();
+            float elapsed = 0f;
 
-                // UI 상태 전환
-                webcamDisplay.gameObject.SetActive(true);
-                warningText.gameObject.SetActive(false);
-            }
-            catch (System.Exception e)
+            while (elapsed < waitTimeoutSeconds)
             {
-                Debug.LogError($"웹캠 연결 실패: {e.Message}");
-                ShowNoCameraState("카메라를 불러올 수 없습니다.\n장치 상태를 확인해 주세요.");
+                var source = ImageSourceProvider.ImageSource;
+
+                if (source != null && source.isPlaying)
+                {
+                    var tex = source.GetCurrentTexture();
+                    if (tex != null && tex.width > 16)
+                    {
+                        webcamDisplay.texture = tex;
+                        webcamDisplay.gameObject.SetActive(true);
+                        warningText.gameObject.SetActive(false);
+                        yield break;
+                    }
+                }
+
+                elapsed += Time.deltaTime;
+                yield return null;
             }
+
+            Debug.LogError("[WebCamController] MediaPipe 카메라가 시간 내에 열리지 않았습니다.");
+            ShowNoCameraState("카메라를 불러올 수 없습니다.\n장치 상태를 확인해 주세요.");
         }
 
         private void ShowNoCameraState(string message)
@@ -58,11 +63,7 @@ namespace WebCamControllerUI.Scripts
 
         private void OnDisable()
         {
-            // 씬 전환이나 비활성화 시 카메라 자원 해제
-            if (webcamTexture != null && webcamTexture.isPlaying)
-            {
-                webcamTexture.Stop();
-            }
+            // 카메라 소유자가 아니므로 Stop() 호출하지 않음
         }
     }
 }
