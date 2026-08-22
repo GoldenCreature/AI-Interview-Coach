@@ -1,19 +1,47 @@
 ﻿using UnityEngine;
-using TMPro;
 using UnityEngine.UI;
+using TMPro;
+using System;
+using UnityEngine.SceneManagement;
+using HJS;
 
 public class FeedbackItemUI : MonoBehaviour
 {
-    [SerializeField] private TMP_Text dateText;
-    [SerializeField] private TMP_Text infoText;
-    [SerializeField] private Button itemButton;
+    [SerializeField] private TextMeshProUGUI dateText;
+    [SerializeField] private TextMeshProUGUI jobTypeText;
 
-    public void Setup(string date, string job, string type, System.Action onClickAction)
+    [SerializeField] private Button mainButton;  
+    [SerializeField] private Button deleteButton; 
+
+    private FeedbackData myData; 
+
+    public void Setup(FeedbackData data, Action onDeleteClick)
     {
-        if (dateText != null) dateText.text = date;
-        if (infoText != null) infoText.text = $"직무 : {job} / 유형 : {type}";
+        myData = data; // 데이터 저장
 
-        itemButton.onClick.RemoveAllListeners();
-        itemButton.onClick.AddListener(() => onClickAction?.Invoke());
+        if (dateText != null) dateText.text = myData.dateText;
+        if (jobTypeText != null) jobTypeText.text = $"직무 : {myData.jobText} / 유형 : {myData.typeText}";
+
+        if (deleteButton != null)
+        {
+            deleteButton.onClick.RemoveAllListeners();
+            deleteButton.onClick.AddListener(() => onDeleteClick?.Invoke());
+        }
+
+        if (mainButton != null)
+        {
+            mainButton.onClick.RemoveAllListeners();
+            mainButton.onClick.AddListener(GoToResultScene);
+        }
+    }
+
+    private void GoToResultScene()
+    {
+        if (FeedbackManager.Instance != null)
+        {
+            FeedbackManager.Instance.CurrentSelectedFeedback = myData;
+        }
+
+        GameManager.Instance.LoadResultScene();
     }
 }

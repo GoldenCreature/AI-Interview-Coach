@@ -72,18 +72,28 @@ namespace MicroPhoneUI.Scripts
             if (MicroDropdown == null) return;
             MicroDropdown.ClearOptions();
 
-            if (Microphone.devices.Length == 0)
+            try
             {
-                Debug.LogError("[마이크 에러] PC에 연결된 마이크 장치를 찾을 수 없습니다!");
-                MicroDropdown.AddOptions(new List<string> { "연결된 마이크 없음" });
-                return;
+                if (Microphone.devices.Length == 0 || Microphone.devices.Length == 0)
+                {
+                    Debug.Log("마이크가 없습니다.");
+                    MicroDropdown.AddOptions(new List<string> { "연결된 마이크 없음" });
+                    SelectedMicName = "";
+                    return;
+                }
+
+                List<string> options = new List<string>(Microphone.devices);
+                MicroDropdown.AddOptions(options);
+                SelectedMicName = Microphone.devices[0];
+
+                UpdateDeviceCapabilities();
             }
-
-            List<string> options = new List<string>(Microphone.devices);
-            MicroDropdown.AddOptions(options);
-            SelectedMicName = Microphone.devices[0];
-
-            UpdateDeviceCapabilities();
+            catch (System.Exception)
+            {
+                Debug.Log("마이크가 없습니다.");
+                MicroDropdown.AddOptions(new List<string> { "연결된 마이크 없음" });
+                SelectedMicName = "";
+            }
         }
 
         void UpdateDeviceCapabilities()
@@ -97,7 +107,11 @@ namespace MicroPhoneUI.Scripts
 
         void OnMicChanged(int index)
         {
-            if (Microphone.devices.Length == 0) return;
+            if (Microphone.devices.Length == 0 || Microphone.devices.Length == 0 || index >= Microphone.devices.Length)
+            {
+                Debug.Log("마이크가 없습니다.");
+                return;
+            }
 
             SelectedMicName = Microphone.devices[index];
             UpdateDeviceCapabilities();
@@ -114,7 +128,12 @@ namespace MicroPhoneUI.Scripts
 
         void StartMicTest()
         {
-            if (string.IsNullOrEmpty(SelectedMicName) || Microphone.devices.Length == 0) return;
+            if (Microphone.devices == null || Microphone.devices.Length == 0)
+            {
+                Debug.Log("마이크가 없습니다");
+                return;
+            }
+            if (string.IsNullOrEmpty(SelectedMicName)) return;
 
             isTesting = true;
             if (testButtonText != null) testButtonText.text = "테스트 중지";
@@ -123,7 +142,7 @@ namespace MicroPhoneUI.Scripts
 
             if (micTestClip == null)
             {
-                Debug.LogError($"[마이크 에러] {SelectedMicName}으로 녹음을 시작하지 못했습니다.");
+                Debug.Log("마이크가 없습니다.");
                 StopMicTest();
                 return;
             }
