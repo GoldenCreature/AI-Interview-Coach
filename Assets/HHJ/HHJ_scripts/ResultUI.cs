@@ -10,33 +10,39 @@ namespace ResultUI.Scripts
         // TODO: [한효준] 대화 기록 표시 UI 연결
         [SerializeField] private TextMeshProUGUI conversationLogText;
 
-        [Header("--- 평가 결과 ---")]
-        // TODO: [한효준] 평가 결과 표시 UI 연결
-        [SerializeField] private TextMeshProUGUI evaluationResultText;
+        [Header("--- [음성 영역] UI 연결 ---")]
+        [SerializeField] private TextMeshProUGUI voiceResultText;       // 음성 평가 결과
+        [SerializeField] private TextMeshProUGUI voiceImprovementText;  // 음성 개선 사항
 
-        //[Header("--- 로딩 표시 ---")]
-        // 평가 결과 기다리는 동안 표시할 패널 (선택사항)
-        // TODO: [한효준] 로딩 패널 UI 연결
-        //[SerializeField] private GameObject loadingPanel;
+        [Header("--- [내용 영역] UI 연결 ---")]
+        [SerializeField] private TextMeshProUGUI contentResultText;     // 내용 평가 결과
+        [SerializeField] private TextMeshProUGUI contentImprovementText;// 내용 개선 사항
+
+        [Header("--- [태도 영역] UI 연결 ---")]
+        [SerializeField] private TextMeshProUGUI attitudeResultText;    // 태도 평가 결과
+        [SerializeField] private TextMeshProUGUI attitudeImprovementText; // 태도 개선 사항
+        
+        [Header("--- 평가 결과 ---")]
+        [SerializeField] private TextMeshProUGUI evaluationResultText;
 
         private void Start()
         {
-            // 씬 시작 시 대화 기록 즉시 표시
-            // TODO: [이재혁] DB 연동 완료 후
-            //       chatHistory 직접 읽기 → DB에서 읽기로 교체
-            ShowConversationLog();
-
-            // 평가 결과는 비동기로 오기 때문에
-            // 로딩 패널을 먼저 활성화
-            //if (loadingPanel != null)
-            //    loadingPanel.SetActive(true);
+            // ✨ 피드백 목록 화면에서 버튼을 클릭하고 넘어온 경우인지 확인
+            if (FeedbackManager.Instance != null && FeedbackManager.Instance.CurrentSelectedFeedback != null)
+            {
+                // 1. 과거 기록 보기 모드
+                LoadSelectedData();
+            }
+            else
+            {
+                // 2. 실시간 면접 종료 후 넘어온 경우 (기존 원본 로직)
+                ShowConversationLog();
+            }
         }
 
         private void OnEnable()
         {
             // 평가 결과 이벤트 구독
-            // GeminiManager → UIManager → InterviewManager
-            // → Result.cs 순서로 전달됨
             InterviewManager.OnEvaluationReceived += HandleEvaluationReceived;
         }
 
@@ -47,31 +53,66 @@ namespace ResultUI.Scripts
         }
 
         // -----------------------------------------------
+        // ✨ [추가됨] 매니저에서 선택된 데이터를 불러와 임시 텍스트 표시
+        // TODO: [이재혁] DB 연동 완료 후 더미 텍스트 생성 부분 삭제 후 DB 로드로 변경
+        // -----------------------------------------------
+        private void LoadSelectedData()
+        {
+            var data = FeedbackManager.Instance.CurrentSelectedFeedback;
+
+            // 1. 대화 기록 표시
+            string dummyLog = $"[면접 일자 : {data.dateText} | 직무 : {data.jobText} | 유형 : {data.typeText}]\n\n" +
+                              $"[지원자]\n안녕하세요, {data.jobText} 직무에 지원한 응시자입니다.\n\n" +
+                              $"[면접관]\n네, 반갑습니다. {data.typeText} 답변 위주로 면접을 진행하겠습니다.";
+
+            if (conversationLogText != null) conversationLogText.text = dummyLog;
+
+            // 2. 영역별 결과/개선사항 임시 데이터 설정
+            SetEvaluationUI(
+                vResult: $"[4/5점] 음성 톤이 안정적이며 전달력이 좋습니다.",
+                vImprove: $"말을 시작할 때 약간의 습관성 불필요 추임새(‘어...’, ‘음...’) 사용을 줄이면 더 전문적으로 보입니다.",
+
+                cResult: $"[5/5점] {data.jobText} 직무 관련 핵심 개념을 정확히 이해하고 논리적으로 답변했습니다.",
+                cImprove: $"질문 의도에 잘 맞게 답변했으나, 구체적인 실제 사례나 프로젝트 경험 수치를 덧붙이면 더욱 완벽합니다.",
+
+                aResult: $"[3/5점] 전체적으로 차분한 표정을 유지했으나, 시선 처리가 다소 불안정했습니다.",
+                aImprove: $"답변 중간에 카메라(면접관 시선)를 이탈하는 횟수를 줄이고 긍정적인 미소를 유지해 보세요."
+            );
+
+            FeedbackManager.Instance.CurrentSelectedFeedback = null;
+        }
+
+        // -----------------------------------------------
         // 평가 결과 수신 시 자동 호출
-        // 현재: 이벤트로 직접 받는 임시 방식
-        // TODO: [이재혁] DB 연동 완료 후
-        //       이벤트 수신 방식 → DB에서 읽기로 교체
-        // TODO: [한효준] DB 연동 후 해당 부분 UI 연결 필요
         // -----------------------------------------------
         private void HandleEvaluationReceived(string evaluationResult)
         {
             Debug.Log("[Result] 평가 결과 수신 완료");
 
-            // 로딩 패널 비활성화
-            //if (loadingPanel != null)
-            //    loadingPanel.SetActive(false);
-
             // 평가 결과 텍스트 표시
             if (evaluationResultText != null)
                 evaluationResultText.text = evaluationResult;
         }
+        // -----------------------------------------------
+        // 영역별 UI 텍스트 일괄 적용 함수
+        // -----------------------------------------------
+        private void SetEvaluationUI(string vResult, string vImprove, string cResult, string cImprove, string aResult, string aImprove)
+        {
+            // 음성 영역 UI
+            if (voiceResultText != null) voiceResultText.text = vResult;
+            if (voiceImprovementText != null) voiceImprovementText.text = vImprove;
+
+            // 내용 영역 UI
+            if (contentResultText != null) contentResultText.text = cResult;
+            if (contentImprovementText != null) contentImprovementText.text = cImprove;
+
+            // 태도 영역 UI
+            if (attitudeResultText != null) attitudeResultText.text = aResult;
+            if (attitudeImprovementText != null) attitudeImprovementText.text = aImprove;
+        }
 
         // -----------------------------------------------
         // 대화 기록 표시
-        // 현재: GeminiManager chatHistory 직접 읽는 임시 방식
-        // TODO: [이재혁] DB 연동 완료 후
-        //       chatHistory 직접 읽기 → DB에서 읽기로 교체
-        // TODO: [한효준] DB 연동 후 해당 부분 UI 연결 필요
         // -----------------------------------------------
         private void ShowConversationLog()
         {
@@ -94,26 +135,18 @@ namespace ResultUI.Scripts
             string log = "";
             foreach (var content in history)
             {
-                // 시스템 프롬프트 제외
-                // 사전 주입된 면접관 역할 프롬프트 건너뜀
-                if (content.role == "user" &&
-                    content.parts[0].text.Contains("면접관입니다"))
+                if (content.role == "user" && content.parts[0].text.Contains("면접관입니다"))
                     continue;
 
-                if (content.role == "model" &&
-                    content.parts[0].text == "네, 면접관 역할을 시작하겠습니다.")
+                if (content.role == "model" && content.parts[0].text == "네, 면접관 역할을 시작하겠습니다.")
                     continue;
 
-                // 면접 시작 트리거 메시지 제외
-                if (content.role == "user" &&
-                    content.parts[0].text == "면접을 시작해주세요.")
+                if (content.role == "user" && content.parts[0].text == "면접을 시작해주세요.")
                     continue;
 
                 string speaker = content.role == "user" ? "지원자" : "면접관";
                 string text = content.parts[0].text;
 
-                // 질문 번호 태그 제거
-                // "[현재 N번 질문에 대한 답변]" 태그 제거 후 표시
                 if (text.Contains("[현재") && text.Contains("번 질문에 대한 답변]"))
                 {
                     int tagEnd = text.IndexOf('\n');
@@ -138,11 +171,5 @@ namespace ResultUI.Scripts
         {
             GameManager.Instance.LoadTitleScene();
         }
-
-        // [다시 면접] 버튼 (선택사항)
-        //public void RetryBtn()
-        //{
-        //    GameManager.Instance.LoadInterviewSetupScene();
-        //}
     }
 }
