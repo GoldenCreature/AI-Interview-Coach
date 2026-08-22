@@ -11,7 +11,6 @@ public class FeedbackData
     public string jobText;  // 직무 (예: IT)
     public string typeText; // 유형 (예: 일상적)
 }
-
 [Serializable]
 public class FeedbackListWrapper
 {
@@ -20,9 +19,24 @@ public class FeedbackListWrapper
 public class FeedbackManager : MonoBehaviour
 {
     public static FeedbackManager Instance { get; private set; }
+    
+    // 버튼의 데이터를 저장할 임시 변수 
+    public FeedbackData CurrentSelectedFeedback { get; set; }
 
     private List<FeedbackData> feedbackList = new List<FeedbackData>();
     private string filePath;
+
+    public void RemoveFeedback(FeedbackData targetData)
+    {
+        var list = GetFeedbackList();
+
+        if (list.Contains(targetData))
+        {
+            list.Remove(targetData);
+        }
+
+        SaveFeedbacks();
+    }
 
     private void Awake()
     {
@@ -40,7 +54,6 @@ public class FeedbackManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
-
     public void AddFeedback(FeedbackData newData)
     {
         feedbackList.Insert(0, newData); // 최신 데이터가 위에 오도록 추가
