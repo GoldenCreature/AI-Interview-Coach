@@ -770,5 +770,17 @@ namespace HJS
 
             return 0;
         }
+
+        // -----------------------------------------------
+        // Gemini 관련 데이터 초기화
+        // 새 면접 시작 전 반드시 호출
+        // InterviewManager.ResetInterview()에서 호출됨
+        // -----------------------------------------------
+        public void ResetGemini()
+        {
+            chatHistory = new Content[0];
+            _currentQuestionNumber = 0;
+            Debug.Log("[GeminiManager] 데이터 초기화 완료");
+        }
     }
 }

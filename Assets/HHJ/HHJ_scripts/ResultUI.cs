@@ -169,6 +169,9 @@ namespace ResultUI.Scripts
         // [메인 화면] 버튼
         public void MainBtn()
         {
+            // 메인으로 돌아가기 전 전체 초기화
+            // 새 면접 시작 시 이전 데이터 남지 않게
+            InterviewManager.Instance.ResetInterview();
             GameManager.Instance.LoadTitleScene();
         }
     }
