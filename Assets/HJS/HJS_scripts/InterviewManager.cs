@@ -73,6 +73,31 @@ namespace HJS
             Debug.Log("[InterviewManager] 평가 결과 임시 저장 완료");
         }
 
+        // -----------------------------------------------
+        // 면접 종료 후 전체 초기화
+        // 새 면접 시작 전 반드시 호출
+        // Result 씬에서 MainBtn() 클릭 시 호출
+        // TODO: [이재혁] DB 저장 완료 후 초기화 호출
+        // -----------------------------------------------
+        public void ResetInterview()
+        {
+            IsInterviewActive = false;
+            SelectedJob = default;
+            SelectedInterviewerType = default;
+            _attitudeScore = 0;
+            EvaluationResult = null;
+
+            // 말버릇 카운트 초기화
+            if (FillerWordDetector.Instance != null)
+                FillerWordDetector.Instance.Reset();
+
+            // GeminiManager 초기화
+            if (UnityAndGeminiV3.Instance != null)
+                UnityAndGeminiV3.Instance.ResetGemini();
+
+            Debug.Log("[InterviewManager] 면접 데이터 전체 초기화 완료");
+        }
+
         // 태도 점수 (신모세 MediaPipe에서 설정)
         private int _attitudeScore;
 
