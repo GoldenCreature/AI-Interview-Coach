@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using TMPro;
 using HJS;
+using UnityEngine.UI;
 
 namespace ResultUI.Scripts
 {
@@ -25,9 +26,26 @@ namespace ResultUI.Scripts
         [Header("--- 평가 결과 ---")]
         [SerializeField] private TextMeshProUGUI evaluationResultText;
 
+        [Header("--- 테스트용 입력 옵션 ---")]
+        [Tooltip("체크하면 Inspector에서 입력한 점수로 막대 차트 및 UI를 테스트합니다.")]
+        [SerializeField] private bool useTestData = true;
+
+        [Header("--- 세로 막대 차트 테스트 입력 (1.0 ~ 5.0) ---")]
+        [Range(1.0f, 5.0f)][SerializeField] private float testVoiceScore = 4.0f;    // 음성 점수
+        [Range(1.0f, 5.0f)][SerializeField] private float testContentScore = 5.0f;  // 내용 점수
+        [Range(1.0f, 5.0f)][SerializeField] private float testAttitudeScore = 3.0f; // 태도 점수
+
+        [Header("--- [세로 막대 차트 Image 연결] ---")]
+        [Tooltip("Image Type: Filled / Fill Method: Vertical / Fill Origin: Bottom 설정 필수!")]
+        [SerializeField] private Image voiceBarFill;    // 음성 영역 막대 Image
+        [SerializeField] private Image contentBarFill;  // 내용 영역 막대 Image
+        [SerializeField] private Image attitudeBarFill; // 태도 영역 막대 Image
+
+        private const float MAX_SCORE = 5.0f; // 만점 기준
+
         private void Start()
         {
-            // ✨ 피드백 목록 화면에서 버튼을 클릭하고 넘어온 경우인지 확인
+            //  피드백 목록 화면에서 버튼을 클릭하고 넘어온 경우인지 확인
             if (FeedbackManager.Instance != null && FeedbackManager.Instance.CurrentSelectedFeedback != null)
             {
                 // 1. 과거 기록 보기 모드
@@ -38,6 +56,47 @@ namespace ResultUI.Scripts
                 // 2. 실시간 면접 종료 후 넘어온 경우 (기존 원본 로직)
                 ShowConversationLog();
             }
+
+            if (useTestData)
+            {
+                ApplyChartScores(testVoiceScore, testContentScore, testAttitudeScore);
+            }
+
+            // (이하 기존 Start 로직 동일)
+            if (FeedbackManager.Instance != null && FeedbackManager.Instance.CurrentSelectedFeedback != null)
+            {
+                LoadSelectedData();
+            }
+            else
+            {
+                ShowConversationLog();
+            }
+        }
+
+        // -----------------------------------------------
+        //  [추가] Inspector에서 값 수정 시 실시간으로 차트 반영 (실행 중일 때)
+        // -----------------------------------------------
+        private void OnValidate()
+        {
+            if (useTestData && Application.isPlaying)
+            {
+                ApplyChartScores(testVoiceScore, testContentScore, testAttitudeScore);
+            }
+        }
+
+        // -----------------------------------------------
+        // [추가] 세로 막대 차트 fillAmount 적용 함수 (밑에서 위로 채워짐)
+        // -----------------------------------------------
+        public void ApplyChartScores(float voiceScore, float contentScore, float attitudeScore)
+        {
+            if (voiceBarFill != null)
+                voiceBarFill.fillAmount = Mathf.Clamp01(voiceScore / MAX_SCORE);
+
+            if (contentBarFill != null)
+                contentBarFill.fillAmount = Mathf.Clamp01(contentScore / MAX_SCORE);
+
+            if (attitudeBarFill != null)
+                attitudeBarFill.fillAmount = Mathf.Clamp01(attitudeScore / MAX_SCORE);
         }
 
         private void OnEnable()
@@ -53,7 +112,7 @@ namespace ResultUI.Scripts
         }
 
         // -----------------------------------------------
-        // ✨ [추가됨] 매니저에서 선택된 데이터를 불러와 임시 텍스트 표시
+        //  [추가됨] 매니저에서 선택된 데이터를 불러와 임시 텍스트 표시
         // TODO: [이재혁] DB 연동 완료 후 더미 텍스트 생성 부분 삭제 후 DB 로드로 변경
         // -----------------------------------------------
         private void LoadSelectedData()
@@ -80,6 +139,12 @@ namespace ResultUI.Scripts
             );
 
             FeedbackManager.Instance.CurrentSelectedFeedback = null;
+
+            //  [추가] 테스트 모드가 아닐 때 불러온 점수로 차트 채우기
+            if (!useTestData)
+            {
+                ApplyChartScores(4.0f, 5.0f, 3.0f); // (나중에 DB 점수로 대체될 자리)
+            }
         }
 
         // -----------------------------------------------
