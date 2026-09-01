@@ -2,12 +2,12 @@
 // InterviewDbModels.cs
 // ------------------------------------------------------------
 // gilzoide/unity-sqlite-net(SQLite-net) ORM 매핑 전용 모델 클래스.
-// ⚠ 이 파일은 테이블/뷰를 "새로 만들지" 않습니다. 원본 DDL(App_Setting,
-//    Interview_Session, Session_Result, View_Session_Report)로 이미 만들어진
-//    스키마에 C# 클래스를 매핑만 합니다.
-//    → 절대 conn.CreateTable<T>() 를 호출하지 마세요. (원본 스키마와 다른
-//       테이블이 새로 생성될 수 있습니다. 테이블 생성은 SchemaBootstrap.cs가
-//       원본 DDL을 그대로 실행하는 방식으로만 수행합니다.)
+// ⚠ 이 파일은 테이블/뷰를 "새로 만들지" 않음 . 원본 DDL(App_Setting,
+//    Interview_Session, Session_Result, View_Session_Report)로
+//    이미 만들어진 스키마에 C# 클래스를 매핑만 하는 역할.
+//    → conn.CreateTable<T>() 를 호출하면 안됨. (원본 스키마와 다른
+//       테이블이 새로 생성될 수 있음. 테이블 생성은 SchemaBootstrap.cs가
+//       원본 DDL을 그대로 실행하는 방식으로만 수행.)
 // ============================================================
 using SQLite;
 
@@ -119,8 +119,20 @@ namespace InterviewDb.Models
         [Column("score_audio")]
         public double? ScoreAudio { get; set; }
 
+        [Column("eval_audio_text")]
+        public string EvalAudioText { get; set; }
+
+        [Column("advice_audio_text")]
+        public string AdviceAudioText { get; set; }
+
         [Column("score_content")]
         public double? ScoreContent { get; set; }
+
+        [Column("eval_content_text")]
+        public string EvalContentText { get; set; }
+
+        [Column("advice_content_text")]
+        public string AdviceContentText { get; set; }
 
         [Column("score_attitude")]
         public double? ScoreAttitude { get; set; }

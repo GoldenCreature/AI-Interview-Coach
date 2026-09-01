@@ -1,19 +1,19 @@
 // ============================================================
 // SchemaBootstrapHardened.cs
 // ------------------------------------------------------------
-// 원본 스키마에 최소한의 CHECK 제약과 트리거를
+// (6차 수정) — 원본 스키마에 최소한의 CHECK 제약과 트리거를
 // 추가하여, DB 자체가 이상현상을 능동적으로 막아주도록 강화한 버전.
 //
 // 기존 SchemaBootstrap.cs(원본, 무수정)는 그대로 남겨두고, 이 파일은 별도의
-// "스키마"로 독립된 다른 DB 파일에 적용하는 것을 전제로 함.
+// "강화된 스키마"로 완전히 독립된 DB 파일에 적용하는 것을 전제로 합니다.
 // ⚠ 기존에 만들어진 .db 파일에는 CREATE TABLE IF NOT EXISTS가 적용되지
-//   않으므로(테이블이 이미 있으면 그냥 스킵됨),  새 DB 파일 경로에서
+//   않으므로(테이블이 이미 있으면 그냥 스킵됨), 새 DB 파일 경로에서
 //   테스트해야 함. 기존 파일을 재사용하면 옛 테이블 구조가 그대로 남아
-//   CHECK/트리거가 전혀 적용되지 않게 됨.
+//   CHECK/트리거가 전혀 적용되지 않음.
 //
 // 추가된 방어 장치 요약:
 //   ① App_Setting 싱글턴          — (기존 유지) CHECK(setting_id = 1)
-//   ② 갱신 이상(total_score)      — AFTER INSERT/UPDATE 트리거로 자동 재계산
+//   ② 갱신 이상(total_score)      — AFTER INSERT/UPDATE 트리거로 자동 계산
 //   ③ 도메인 무결성(session_status) — CHECK(session_status IN (...))
 //   ④ 시간 순서(end_time)          — CHECK(end_time IS NULL OR end_time >= start_time)
 //   ⑤ 1NF성 이상(conversation_log) — CHECK(json_valid(...)) + BEFORE 트리거로 speaker 값 검증
@@ -22,7 +22,7 @@
 //                                    + AFTER DELETE 트리거로 수동 CASCADE(역시 pragma와 무관)
 //   ⑦ 갱신 손실(Lost Update)      — version 컬럼(낙관적 동시성 제어). 단, 앱 쿼리가
 //                                    WHERE version = ? 를 실제로 사용해야 방어됨
-//                                    (스키마만으로는 100% 손실을 막을 수는 없음 — SchemaIntegrityDefenseTest.cs 참고)
+//                                    (스키마만으로는 100% 강제 불가 — SchemaIntegrityDefenseTest.cs 참고)
 // ============================================================
 using SQLite;
 
@@ -65,17 +65,24 @@ namespace InterviewDb.Core
             @"CREATE INDEX IF NOT EXISTS idx_session_time
 ON Interview_Session(start_time DESC);",
 
-            // ── Session_Result: version 컬럼(낙관적 동시성 제어용) 추가 ──
+            // ── Session_Result: 영역별 평가/개선사항 컬럼 추가 (7차 수정 - Result Scene 연동 규격화) ──
+            // 음성/내용은 [점수 + 평가 텍스트 + 개선사항 텍스트] 3개씩 전용 컬럼.
+            // 태도는 요구사항대로 단일 점수만 유지(전용 텍스트 컬럼 없음) —
+            // 표정 관련 코멘트는 기존 summary_text/advice_text(공용)에 계속 누적됨.
             @"CREATE TABLE IF NOT EXISTS Session_Result (
-    session_id     INTEGER PRIMARY KEY,
-    score_audio    REAL    NULL,
-    score_content  REAL    NULL,
-    score_attitude REAL    NULL,
-    total_score    REAL    NULL,
-    summary_text   TEXT    NULL,
-    advice_text    TEXT    NULL,
-    created_at     TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
-    version        INTEGER NOT NULL DEFAULT 1,
+    session_id           INTEGER PRIMARY KEY,
+    score_audio           REAL    NULL,
+    eval_audio_text       TEXT    NULL,
+    advice_audio_text     TEXT    NULL,
+    score_content         REAL    NULL,
+    eval_content_text     TEXT    NULL,
+    advice_content_text   TEXT    NULL,
+    score_attitude        REAL    NULL,
+    total_score           REAL    NULL,
+    summary_text          TEXT    NULL,
+    advice_text           TEXT    NULL,
+    created_at            TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+    version                INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY (session_id) REFERENCES Interview_Session(session_id) ON DELETE CASCADE
 );",
 
@@ -91,7 +98,11 @@ SELECT
     CAST((julianday(s.end_time) - julianday(s.start_time)) * 86400 AS INTEGER) AS duration_seconds,
     s.conversation_log,
     r.score_audio,
+    r.eval_audio_text,
+    r.advice_audio_text,
     r.score_content,
+    r.eval_content_text,
+    r.advice_content_text,
     r.score_attitude,
     r.total_score,
     r.summary_text,
@@ -138,7 +149,9 @@ END;",
 
             // ── 트리거 ⑦ 보조: score/텍스트가 바뀔 때마다 version 자동 증가 ──
             @"CREATE TRIGGER IF NOT EXISTS trg_session_result_version_bump
-AFTER UPDATE OF score_audio, score_content, score_attitude, summary_text, advice_text ON Session_Result
+AFTER UPDATE OF score_audio, eval_audio_text, advice_audio_text,
+                 score_content, eval_content_text, advice_content_text,
+                 score_attitude, summary_text, advice_text ON Session_Result
 FOR EACH ROW
 BEGIN
     UPDATE Session_Result SET version = OLD.version + 1 WHERE session_id = NEW.session_id;
@@ -179,7 +192,7 @@ BEGIN
 END;"
         };
 
-        /// <summary>수정된 스키마를 적용. 반드시 해당 DB 파일에서만 사용.</summary>
+        /// <summary>강화된 스키마를 적용하며, 이미 만들어진 DB 파일에서만 사용해야 함.</summary>
         public static void ApplySchema(SQLiteConnection conn)
         {
             foreach (var statement in SchemaStatements)

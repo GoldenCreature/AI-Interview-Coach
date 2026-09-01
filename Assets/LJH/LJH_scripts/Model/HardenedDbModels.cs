@@ -21,8 +21,20 @@ namespace InterviewDb.Models
         [Column("score_audio")]
         public double? ScoreAudio { get; set; }
 
+        [Column("eval_audio_text")]
+        public string EvalAudioText { get; set; }
+
+        [Column("advice_audio_text")]
+        public string AdviceAudioText { get; set; }
+
         [Column("score_content")]
         public double? ScoreContent { get; set; }
+
+        [Column("eval_content_text")]
+        public string EvalContentText { get; set; }
+
+        [Column("advice_content_text")]
+        public string AdviceContentText { get; set; }
 
         [Column("score_attitude")]
         public double? ScoreAttitude { get; set; }
