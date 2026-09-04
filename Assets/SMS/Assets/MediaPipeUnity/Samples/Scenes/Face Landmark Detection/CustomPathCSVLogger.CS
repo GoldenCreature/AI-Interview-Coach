@@ -55,15 +55,15 @@ public class CustomPathCSVLogger : MonoBehaviour
         Debug.Log($"[CSV Logger] 최종 CSV 파일 저장 경로: {finalFilePath}");
 
         // 4. 파일이 없을 때만 헤더(Header) 작성
-        // [간소화] 평균값 3개 + 종합 평가(등급/상세/점수)만 저장
+        // [수정] 감정별 개별 점수(Smile/Surprise/Angry)와 평가등급(EvaluationGrade)은 저장하지 않고,
+        // Timestamp + EvaluationScore + EvaluationDetail만 저장
         if (!File.Exists(finalFilePath))
         {
             try
             {
                 using (StreamWriter sw = File.CreateText(finalFilePath))
                 {
-                    sw.WriteLine("Timestamp,SmileScore,SurpriseScore,AngryScore," +
-                                 "EvaluationGrade,EvaluationDetail,EvaluationScore");
+                    sw.WriteLine("Timestamp,EvaluationScore,EvaluationDetail,ImprovementNotes");
                 }
             }
             catch (Exception e)
@@ -74,23 +74,20 @@ public class CustomPathCSVLogger : MonoBehaviour
     }
 
     /// <summary>
-    /// 외부에서 이번 구간 점수 + 종합 평가 결과를 전달받아 CSV에 한 줄씩 기록하는 함수
+    /// 외부에서 시간 + 종합 평가 점수/코멘트를 전달받아 CSV에 한 줄씩 기록하는 함수
     /// </summary>
-    public void SaveScoreToCSV(
-        float smileScore, float surpriseScore, float angryScore,
-        string evaluationGrade, string evaluationDetail,
-        float evaluationScore)
+    public void SaveScoreToCSV(DateTime timestamp, float evaluationScore, string evaluationDetail, string improvementNotes)
     {
         if (string.IsNullOrEmpty(finalFilePath)) return;
 
-        string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+        string timestampStr = timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff");
 
         // CSV 규격상 콤마/줄바꿈/큰따옴표가 포함된 텍스트는 큰따옴표로 감싸고
-        // 내부 큰따옴표는 두 개("")로 이스케이프해야 함. evaluationDetail은 여러 줄 코멘트라 특히 중요.
+        // 내부 큰따옴표는 두 개("")로 이스케이프해야 함. 코멘트/개선사항은 여러 줄일 수 있어 특히 중요.
         string safeDetail = EscapeCsvField(evaluationDetail);
+        string safeImprovementNotes = EscapeCsvField(improvementNotes);
 
-        string csvLine = $"{timestamp},{smileScore:F1},{surpriseScore:F1},{angryScore:F1}," +
-                          $"{evaluationGrade},{safeDetail},{evaluationScore:F1}";
+        string csvLine = $"{timestampStr},{evaluationScore:F1},{safeDetail},{safeImprovementNotes}";
 
         try
         {
