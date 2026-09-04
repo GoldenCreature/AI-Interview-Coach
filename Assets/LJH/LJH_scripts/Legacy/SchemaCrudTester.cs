@@ -3,16 +3,16 @@
 // ------------------------------------------------------------
 // 목적: 원본 스키마(App_Setting / Interview_Session / Session_Result /
 //       View_Session_Report)를 전혀 수정하지 않고, gilzoide(unity-sqlite-net)
-//       ORM/쿼리만으로 각 테이블과 뷰(조인)의 CRUD 및 무결성을 검증합니다.
+//       ORM/쿼리만으로 각 테이블과 뷰(조인)의 CRUD 및 무결성을 검증.
 //
 // 사용법:
-//   1) 빈 GameObject를 하나 만들고 이 컴포넌트를 붙입니다.
+//   1) 빈 GameObject를 하나 만들고 이 컴포넌트를 붙임.
 //   2) Play 시 자동 실행되거나, Inspector에서 컴포넌트명 우클릭 →
-//      "Run CRUD Test"로 수동 실행할 수 있습니다.
-//   3) Console 창에서 [PASS]/[FAIL] 로그를 확인합니다.
+//      "Run CRUD Test"로 수동 실행할 수 있음.
+//   3) Console 창에서 [PASS]/[FAIL] 로그를 확인.
 //
 // 주의: 기본적으로 트랜잭션을 롤백하므로 실제 DB에는 테스트 데이터가
-//       남지 않습니다. (rollbackAfterTest = false 로 바꾸면 커밋되어 남음)
+//       남지 않음. (rollbackAfterTest = false 로 바꾸면 커밋되어 남음)
 // ============================================================
 using System;
 using System.Collections.Generic;
@@ -108,7 +108,6 @@ namespace InterviewDb.Testing
             var session = new InterviewSession
             {
                 JobCategory = "IT개발자",
-                InterviewLang = "KO",
                 SessionStatus = "In-Progress",
                 StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
             };
@@ -189,7 +188,6 @@ namespace InterviewDb.Testing
             var orphan = new InterviewSession
             {
                 JobCategory = "디자인",
-                InterviewLang = "KO",
                 SessionStatus = "Aborted",
                 StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
             };
@@ -208,7 +206,6 @@ namespace InterviewDb.Testing
             var temp = new InterviewSession
             {
                 JobCategory = "영업",
-                InterviewLang = "KO",
                 SessionStatus = "Completed",
                 StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 EndTime = DateTime.Now.AddMinutes(10).ToString("yyyy-MM-dd HH:mm:ss")
