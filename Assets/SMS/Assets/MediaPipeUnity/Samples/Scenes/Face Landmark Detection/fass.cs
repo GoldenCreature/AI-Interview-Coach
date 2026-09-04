@@ -37,6 +37,42 @@ public class fass : MonoBehaviour
     private bool isCalibrating = false;
     private List<Vector3> latestLandmarks = null;
 
+    [Header("얼굴 각도 제한 (Head Pose Gate)")]
+    [Tooltip("체크하면 얼굴이 특정 각도 이상 돌아갔을 때 분석(점수 계산/저장)을 건너뜁니다.")]
+    public bool enableAngleGate = true;
+
+    [Tooltip("좌우 회전(Yaw) 허용 한계. 양쪽 귀(234/454)의 z값 차이를 얼굴 너비로 나눈 비율입니다. " +
+             "값이 작을수록 더 엄격(조금만 돌아가도 멈춤), 클수록 관대합니다. " +
+             "직접 입력하거나 아래 각도 임계값 캘리브레이션으로 자동 측정할 수 있습니다.")]
+    public float maxYawRatio = 0.80f;
+
+    [Tooltip("상하 회전(Pitch) 허용 한계. 이마(10)/턱(152)의 z값 차이를 얼굴 높이로 나눈 비율입니다. " +
+             "값이 작을수록 더 엄격, 클수록 관대합니다. " +
+             "직접 입력하거나 아래 각도 임계값 캘리브레이션으로 자동 측정할 수 있습니다.")]
+    public float maxPitchRatio = 0.80f;
+
+    [Tooltip("각도 초과로 분석이 멈춘 상태인지 (UI 표시 등에서 참조 가능)")]
+    public bool isFaceTooAngled = false;
+
+    [Header("각도 임계값 자동 캘리브레이션")]
+    [Tooltip("무표정 캘리브레이션 직후 자동으로 이어서 각도 임계값 캘리브레이션까지 진행합니다. " +
+             "즉, calibrationKey(기본 Space) 한 번으로 '무표정 유지 → 한계각도로 고개 돌려 유지' 순서가 자동 진행됩니다.")]
+    public KeyCode angleThresholdCalibrationKey = KeyCode.Tab;
+
+    [Tooltip("각도 임계값 캘리브레이션에 사용할 시간(초). 이 시간 동안 원하는 한계 각도를 유지해주세요.")]
+    public float angleThresholdCalibrationDuration = 3f;
+
+    [Tooltip("무표정 캘리브레이션이 끝난 뒤, 한계 각도로 고개를 돌릴 시간을 주기 위한 대기시간(초).")]
+    public float angleTransitionDelay = 2f;
+
+    [Tooltip("자동 측정된 값에 곱하는 안전 여유율. 1.0이면 측정된 최대값 그대로, " +
+             "0.9면 측정값보다 10% 더 엄격하게(살짝 여유를 두고) 설정합니다.")]
+    [Range(0.5f, 1f)]
+    public float angleThresholdSafetyMargin = 1f;
+
+    private bool isCalibratingAngleThreshold = false;
+    private bool isCalibratingSequence = false;
+
     [Header("노이즈 완화 (이동평균)")]
     [Tooltip("저장 시점에 사용할 최근 프레임 점수의 개수. 클수록 부드럽지만 반응이 느려짐.")]
     public int smoothingWindowSize = 30;
@@ -91,6 +127,9 @@ public class fass : MonoBehaviour
     [Tooltip("가장 최근 평가 상세 코멘트")]
     public string latestEvaluationDetail = "";
 
+    [Tooltip("가장 최근 개선사항 (감정별 구체적인 코멘트, 총평과는 별도)")]
+    public string latestImprovementNotes = "";
+
     [Tooltip("가장 최근 평가 점수 (0~5점 만점으로 정규화된 값)")]
     public float latestEvaluationScore = 0f;
 
@@ -120,10 +159,16 @@ public class fass : MonoBehaviour
 
     void Update()
     {
-        // 캘리브레이션 시작 키 입력 감지 (Play 모드에서 무표정 상태로 눌러주세요)
-        if (Input.GetKeyDown(calibrationKey) && !isCalibrating)
+        // 캘리브레이션 시작 키 입력 감지: 무표정 → (자동 전환) → 한계각도 순서로 이어서 진행됨
+        if (Input.GetKeyDown(calibrationKey) && !isCalibratingSequence)
         {
-            StartCoroutine(CalibrateNeutralRatios());
+            StartCoroutine(CalibrateSequence());
+        }
+
+        // 각도 임계값만 단독으로 다시 측정하고 싶을 때 (무표정 기준값은 그대로 두고 한계각도만 재조정)
+        if (Input.GetKeyDown(angleThresholdCalibrationKey) && !isCalibratingAngleThreshold && !isCalibratingSequence)
+        {
+            StartCoroutine(CalibrateAngleThreshold());
         }
     }
 
@@ -170,6 +215,16 @@ public class fass : MonoBehaviour
             return;
         }
 
+        // 얼굴 각도 게이트: 옆으로 너무 돌아가거나(Yaw) 위아래로 너무 숙여지면(Pitch)
+        // 랜드마크 왜곡으로 점수가 부정확해지므로 이번 프레임 분석 자체를 건너뜀.
+        if (enableAngleGate && IsFaceTooAngled(landmarks, out string angleReason))
+        {
+            isFaceTooAngled = true;
+            Debug.Log($"[fass] 분석 스킵: 얼굴 각도가 허용 범위를 벗어났습니다 ({angleReason}). 정면을 바라봐주세요.");
+            return;
+        }
+        isFaceTooAngled = false;
+
         // 프레임 노이즈 완화: 매 프레임 점수를 계산해서 슬라이딩 윈도우에 쌓아둠.
         // 이렇게 하면 저장 시점에 하필 랜드마크가 튄 프레임 하나만 캡처하는 대신
         // 최근 N프레임의 평균값을 사용할 수 있음.
@@ -190,6 +245,7 @@ public class fass : MonoBehaviour
         lastLoggedTime = now;
 
         // 저장 시점에는 단일 프레임 값이 아니라 최근 윈도우의 평균값을 사용
+        // (감정별 개별 점수는 여전히 종합 평가 계산에는 쓰이지만, 저장 자체는 하지 않음)
         float smileScore = Average(smileBuffer);
         float surpriseScore = Average(surpriseBuffer);
         float angryScore = Average(angryBuffer);
@@ -204,7 +260,7 @@ public class fass : MonoBehaviour
 
         Debug.Log($"[fass] 2단계 성공: 점수 계산 완료 (미소:{smileScore:F1}, 놀람:{surpriseScore:F1}, 분노:{angryScore:F1}, 샘플수:{smileBuffer.Count})");
 
-        // 감정별 합계/평균을 각각 따로 출력
+        // 감정별 합계/평균을 각각 따로 출력 (디버그용, 저장 대상 아님)
         Debug.Log($"[fass][기쁨] 이번 구간 평균:{smileScore:F2} | 누적 합계:{smileTotal:F1} | 누적 평균:{SmileAverage:F2} (총 {smileCount}회 기록)");
         Debug.Log($"[fass][놀람] 이번 구간 평균:{surpriseScore:F2} | 누적 합계:{surpriseTotal:F1} | 누적 평균:{SurpriseAverage:F2} (총 {surpriseCount}회 기록)");
         Debug.Log($"[fass][분노] 이번 구간 평균:{angryScore:F2} | 누적 합계:{angryTotal:F1} | 누적 평균:{AngryAverage:F2} (총 {angryCount}회 기록)");
@@ -212,21 +268,21 @@ public class fass : MonoBehaviour
         // ===================================================================
         // 면접용 종합 평가 실행
         // ===================================================================
-        var (grade, summary, detail, normalizedScore) = EvaluateExpression(smileScore, surpriseScore, angryScore);
+        var (grade, summary, detail, improvementNotes, normalizedScore) = EvaluateExpression(smileScore, surpriseScore, angryScore);
         latestGrade = grade;
         latestEvaluationSummary = summary;
         latestEvaluationDetail = detail;
+        latestImprovementNotes = improvementNotes;
         latestEvaluationScore = normalizedScore;
 
-        Debug.Log($"[fass][평가] 종합 평가: {summary} ({normalizedScore:F1}/5.0)\n{detail}");
+        Debug.Log($"[fass][평가] 종합 평가: {summary} ({normalizedScore:F1}/5.0)\n{detail}\n{improvementNotes}");
         // ===================================================================
 
-        // [수정] EvaluationGrade 컬럼에 영문(grade.ToString()) 대신 한글 등급(summary)을 저장
+        // [수정] 저장 시에는 미소/놀람/분노 개별 점수와 평가등급(summary)을 제거하고,
+        // 종합 점수(normalizedScore) + 총평(detail) + 개선사항(improvementNotes) + 시간(now)을 전달.
         if (csvLogger != null)
         {
-            csvLogger.SaveScoreToCSV(
-                smileScore, surpriseScore, angryScore,
-                summary, detail, normalizedScore);
+            csvLogger.SaveScoreToCSV(now, normalizedScore, detail, improvementNotes);
             Debug.Log("[fass] 3단계 성공: CSV Logger에 데이터 저장을 전송했습니다!");
         }
         else
@@ -236,9 +292,7 @@ public class fass : MonoBehaviour
 
         if (dbLogger != null)
         {
-            dbLogger.SaveScoreToDB(
-                smileScore, surpriseScore, angryScore,
-                summary, detail, normalizedScore);
+            dbLogger.SaveScoreToDB(now, normalizedScore, detail, improvementNotes);
             Debug.Log("[fass] 4단계 성공: DB Logger에 데이터 저장을 전송했습니다!");
         }
         else
@@ -295,30 +349,62 @@ public class fass : MonoBehaviour
         return eyebrowDist / (faceWidth > 0 ? faceWidth : 1f);
     }
 
+    // ===== 얼굴 각도(Head Pose) 판정 =====
+    // MediaPipe 랜드마크의 z값은 카메라 방향 깊이를 나타내므로,
+    // 좌우 대칭점(양쪽 귀) 또는 상하 대칭점(이마/턱)의 z 차이가 클수록
+    // 얼굴이 카메라 정면이 아니라 옆/위아래로 돌아가 있다는 뜻.
+
+    // Yaw(좌우 회전) 비율만 단독으로 계산 (캘리브레이션에서 재사용)
+    private float GetRawYawRatio(List<Vector3> landmarks)
+    {
+        float faceWidth = Vector3.Distance(landmarks[234], landmarks[454]);
+        float leftEarZ = landmarks[234].z;
+        float rightEarZ = landmarks[454].z;
+        return Mathf.Abs(leftEarZ - rightEarZ) / (faceWidth > 0 ? faceWidth : 1f);
+    }
+
+    // Pitch(상하 회전) 비율만 단독으로 계산 (캘리브레이션에서 재사용)
+    private float GetRawPitchRatio(List<Vector3> landmarks)
+    {
+        float faceHeight = Vector3.Distance(landmarks[10], landmarks[152]);
+        float foreheadZ = landmarks[10].z;
+        float chinZ = landmarks[152].z;
+        return Mathf.Abs(foreheadZ - chinZ) / (faceHeight > 0 ? faceHeight : 1f);
+    }
+
+    private bool IsFaceTooAngled(List<Vector3> landmarks, out string reason)
+    {
+        float yawRatio = GetRawYawRatio(landmarks);
+        float pitchRatio = GetRawPitchRatio(landmarks);
+
+        if (yawRatio > maxYawRatio)
+        {
+            reason = $"좌우 회전 {yawRatio:F2} (허용 한계 {maxYawRatio:F2} 초과)";
+            return true;
+        }
+
+        if (pitchRatio > maxPitchRatio)
+        {
+            reason = $"상하 회전 {pitchRatio:F2} (허용 한계 {maxPitchRatio:F2} 초과)";
+            return true;
+        }
+
+        reason = "";
+        return false;
+    }
+
     // ===== 점수 계산 (raw ratio를 baseline과 비교 후 증폭) =====
 
-    // mouthWidth 대신 faceWidth로 정규화 -> Surprise/Angry와 기준 통일.
-    // 기존 방식(mouthHeight / mouthWidth)은 웃을 때 입이 가로로도 벌어지면서
-    // 분모가 같이 커져 ratio 증가폭이 둔해지는 문제가 있었음.
-    // neutralSmileRatio를 빼서 무표정 상태의 baseline을 0으로 맞춤.
     private float CalculateSmile(List<Vector3> landmarks)
     {
         float ratio = GetRawSmileRatio(landmarks);
-
-        // TODO: 아래 계수(35f)는 실제 테스트 데이터를 보며 재조정 필요.
-        // 무표정/활짝 웃는 표정일 때 ratio 값을 각각 Debug.Log로 확인한 뒤 배율 조정 권장.
         float score = (ratio - neutralSmileRatio) * 35f;
         return Mathf.Clamp(score, 0f, 5f);
     }
 
-    // neutralSurpriseRatio를 빼서 무표정 상태의 baseline을 0으로 맞춤.
     private float CalculateSurprise(List<Vector3> landmarks)
     {
         float ratio = GetRawSurpriseRatio(landmarks);
-
-        // TODO: 아래 계수(50f)는 실제 테스트 데이터를 보며 재조정 필요.
-        // 평상시 표정과 놀란 표정일 때의 ratio 값을 각각 Debug.Log로 확인한 뒤
-        // 그 사이 구간에 맞게 배율을 잡는 것을 권장.
         float score = (ratio - neutralSurpriseRatio) * 50f;
         return Mathf.Clamp(score, 0f, 5f);
     }
@@ -333,34 +419,22 @@ public class fass : MonoBehaviour
     // ===================================================================
     // 종합 평가 (면접 상황 기준)
     // ===================================================================
-    // TODO: 아래 계수와 임계값은 실제 면접 시뮬레이션 데이터를 보며 재조정 필요.
-    // 면접 컨텍스트에서는 "긍정적 감정이 많을수록 좋다"가 아니라
-    // "침착하고 안정된 인상을 주는가"가 핵심 기준.
-    private (ExpressionGrade grade, string summary, string detail, float normalizedScore) EvaluateExpression(
+    private (ExpressionGrade grade, string summary, string detail, string improvementNotes, float normalizedScore) EvaluateExpression(
         float smile, float surprise, float angry)
     {
-        // 1) 분노/찌푸림: 클수록 감점 (방어적/긴장된 인상)
         float angryPenalty = angry * 1.5f;
-
-        // 2) 놀람: 면접에서는 놀람=당황/동요로 해석. 낮을수록(차분할수록) 좋음.
         float surprisePenalty = surprise * 0.8f;
 
-        // 3) 미소: 적당한 수준(1.5~3점)이 이상적. 너무 없으면 딱딱해 보이고,
-        //    너무 과하면 부자연스럽거나 긴장을 감추려는 것처럼 보일 수 있음.
         float smileBonus;
         if (smile < 1.5f)
-            smileBonus = smile * 0.6f; // 미소 부족 -> 약한 가점
+            smileBonus = smile * 0.6f;
         else if (smile <= 3f)
-            smileBonus = 1f + (smile - 1.5f) * 1f; // 적당 구간 -> 최대 가점
+            smileBonus = 1f + (smile - 1.5f) * 1f;
         else
-            smileBonus = 2.5f - (smile - 3f) * 0.5f; // 과도한 미소 -> 가점 감소
+            smileBonus = 2.5f - (smile - 3f) * 0.5f;
 
         float totalScore = smileBonus - angryPenalty - surprisePenalty;
 
-        // totalScore(대략 -11.5 ~ +2.5 범위)를 0~5점으로 정규화.
-        // 등급 구간의 상한(1.5 = Excellent 시작점)과 하한(-1.5 = Poor 시작점)을
-        // 각각 5점/0점 기준으로 매핑해서, 숫자 점수와 등급이 서로 어긋나지 않게 함.
-        // TODO: 실측 데이터를 보며 아래 -1.5f/1.5f 기준값(등급 임계값과 동일)을 재조정 가능.
         const float normMin = -1.5f;
         const float normMax = 1.5f;
         float normalizedScore = (totalScore - normMin) / (normMax - normMin) * 5f;
@@ -368,57 +442,57 @@ public class fass : MonoBehaviour
 
         ExpressionGrade grade;
         string summary;
-        var detail = new System.Text.StringBuilder();
+        string detail;
 
         if (totalScore >= 1.5f)
         {
             grade = ExpressionGrade.Excellent;
             summary = "매우 안정적";
-            detail.AppendLine("침착하고 신뢰감 있는 표정을 유지하고 있습니다. 면접관에게 좋은 인상을 줄 가능성이 높습니다.");
+            detail = "침착하고 신뢰감 있는 표정을 유지하고 있습니다. 면접관에게 좋은 인상을 줄 가능성이 높습니다.";
         }
         else if (totalScore >= 0.5f)
         {
             grade = ExpressionGrade.Good;
             summary = "안정적";
-            detail.AppendLine("전반적으로 무난하고 안정된 표정입니다.");
+            detail = "전반적으로 무난하고 안정된 표정입니다.";
         }
         else if (totalScore >= -0.5f)
         {
             grade = ExpressionGrade.Average;
             summary = "보통";
-            detail.AppendLine("특별한 문제는 없으나, 조금 더 여유 있는 인상을 위해 표정을 다듬어보세요.");
+            detail = "특별한 문제는 없으나, 조금 더 여유 있는 인상을 위해 표정을 다듬어보세요.";
         }
         else if (totalScore >= -1.5f)
         {
             grade = ExpressionGrade.NeedsWork;
             summary = "긴장 감지";
-            detail.AppendLine("긴장하거나 동요하는 표정이 감지되었습니다. 심호흡을 하고 속도를 조절해보세요.");
+            detail = "긴장하거나 동요하는 표정이 감지되었습니다. 심호흡을 하고 속도를 조절해보세요.";
         }
         else
         {
             grade = ExpressionGrade.Poor;
             summary = "불안정";
-            detail.AppendLine("면접 태도에 부정적으로 작용할 수 있는 표정 변화가 감지되었습니다.");
+            detail = "면접 태도에 부정적으로 작용할 수 있는 표정 변화가 감지되었습니다.";
         }
 
-        // 개별 감정별 세부 코멘트 (면접 관점)
-        if (angry >= 2.5f)
-            detail.AppendLine($"- 미간/눈썹에 긴장이 감지됩니다 ({angry:F1}/5). 질문을 들을 때 표정을 편하게 풀어보세요.");
-        if (surprise >= 3f)
-            detail.AppendLine($"- 예상 밖 반응이 자주 감지됩니다 ({surprise:F1}/5). 답변 전 잠깐의 여유를 가져보세요.");
-        if (smile < 0.5f)
-            detail.AppendLine($"- 표정이 다소 경직되어 있습니다 ({smile:F1}/5). 자연스러운 미소를 시도해보세요.");
-        if (smile > 4f)
-            detail.AppendLine($"- 미소가 다소 과도하게 유지되고 있습니다 ({smile:F1}/5). 상황에 맞는 톤 조절이 필요할 수 있습니다.");
+        // 개별 감정별 구체적인 개선사항 (총평과는 별도로 모아서 반환)
+        var improvementNotes = new System.Text.StringBuilder();
 
-        return (grade, summary, detail.ToString(), normalizedScore);
+        if (angry >= 2.5f)
+            improvementNotes.AppendLine($"- 미간/눈썹에 긴장이 감지됩니다 ({angry:F1}/5). 질문을 들을 때 표정을 편하게 풀어보세요.");
+        if (surprise >= 3f)
+            improvementNotes.AppendLine($"- 예상 밖 반응이 자주 감지됩니다 ({surprise:F1}/5). 답변 전 잠깐의 여유를 가져보세요.");
+        if (smile < 0.5f)
+            improvementNotes.AppendLine($"- 표정이 다소 경직되어 있습니다 ({smile:F1}/5). 자연스러운 미소를 시도해보세요.");
+        if (smile > 4f)
+            improvementNotes.AppendLine($"- 미소가 다소 과도하게 유지되고 있습니다 ({smile:F1}/5). 상황에 맞는 톤 조절이 필요할 수 있습니다.");
+
+        return (grade, summary, detail, improvementNotes.ToString(), normalizedScore);
     }
     // ===================================================================
 
     // ===== 자동 캘리브레이션 =====
 
-    // Play 모드에서 calibrationKey(기본 Space)를 누르면 실행됨.
-    // calibrationDuration(기본 3초) 동안 무표정을 유지해야 정확하게 측정됨.
     private System.Collections.IEnumerator CalibrateNeutralRatios()
     {
         isCalibrating = true;
@@ -432,7 +506,8 @@ public class fass : MonoBehaviour
 
         while (elapsed < calibrationDuration)
         {
-            if (latestLandmarks != null && latestLandmarks.Count >= 468)
+            if (latestLandmarks != null && latestLandmarks.Count >= 468
+                && !(enableAngleGate && IsFaceTooAngled(latestLandmarks, out _)))
             {
                 smileSum += GetRawSmileRatio(latestLandmarks);
                 surpriseSum += GetRawSurpriseRatio(latestLandmarks);
@@ -441,7 +516,7 @@ public class fass : MonoBehaviour
             }
 
             elapsed += Time.deltaTime;
-            yield return null; // 다음 프레임까지 대기
+            yield return null;
         }
 
         if (sampleCount > 0)
@@ -461,5 +536,76 @@ public class fass : MonoBehaviour
         }
 
         isCalibrating = false;
+    }
+
+    // Play 모드에서 angleThresholdCalibrationKey(기본 Tab)를 누른 채로
+    // "여기까지는 허용하고 싶다"는 가장 심한 각도를 angleThresholdCalibrationDuration(기본 3초) 동안
+    // 유지하면, 그 구간에서 관측된 최대 Yaw/Pitch 비율을 그대로 임계값으로 반영함.
+    private System.Collections.IEnumerator CalibrateAngleThreshold()
+    {
+        isCalibratingAngleThreshold = true;
+        Debug.Log($"[fass] 각도 임계값 캘리브레이션 시작! {angleThresholdCalibrationDuration}초 동안 " +
+                  "허용하고 싶은 가장 심한 각도로 고개를 유지해주세요...");
+
+        float maxObservedYaw = 0f;
+        float maxObservedPitch = 0f;
+        int sampleCount = 0;
+        float elapsed = 0f;
+
+        while (elapsed < angleThresholdCalibrationDuration)
+        {
+            if (latestLandmarks != null && latestLandmarks.Count >= 468)
+            {
+                float yaw = GetRawYawRatio(latestLandmarks);
+                float pitch = GetRawPitchRatio(latestLandmarks);
+
+                if (yaw > maxObservedYaw) maxObservedYaw = yaw;
+                if (pitch > maxObservedPitch) maxObservedPitch = pitch;
+
+                sampleCount++;
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (sampleCount > 0)
+        {
+            maxYawRatio = maxObservedYaw * angleThresholdSafetyMargin;
+            maxPitchRatio = maxObservedPitch * angleThresholdSafetyMargin;
+
+            Debug.Log($"[fass] 각도 임계값 캘리브레이션 완료! (샘플 {sampleCount}개)\n" +
+                       $"관측된 최대 Yaw={maxObservedYaw:F3}, Pitch={maxObservedPitch:F3}\n" +
+                       $"안전 여유율 {angleThresholdSafetyMargin:F2} 적용 후 → " +
+                       $"maxYawRatio={maxYawRatio:F3}, maxPitchRatio={maxPitchRatio:F3}");
+        }
+        else
+        {
+            Debug.LogWarning("[fass] 각도 임계값 캘리브레이션 실패: 유효한 랜드마크 샘플을 얻지 못했습니다. 얼굴이 카메라에 잘 잡히는지 확인하세요.");
+        }
+
+        isCalibratingAngleThreshold = false;
+    }
+
+    // calibrationKey(기본 Space) 한 번으로 무표정 캘리브레이션과 한계각도 캘리브레이션을
+    // 순서대로 자동 진행함: 1) 무표정 유지(calibrationDuration) → 2) 전환 대기(angleTransitionDelay,
+    // 이 시간 동안 한계각도로 고개를 돌리면 됨) → 3) 한계각도 유지(angleThresholdCalibrationDuration)
+    private System.Collections.IEnumerator CalibrateSequence()
+    {
+        isCalibratingSequence = true;
+
+        Debug.Log("[fass] 통합 캘리브레이션 시작! 1단계: 무표정 기준값을 측정합니다.");
+        yield return StartCoroutine(CalibrateNeutralRatios());
+
+        Debug.Log($"[fass] 2단계 준비: {angleTransitionDelay}초 안에 허용하고 싶은 " +
+                  "가장 심한 각도로 고개를 돌려 그 자세를 유지해주세요.");
+        yield return new WaitForSeconds(angleTransitionDelay);
+
+        Debug.Log($"[fass] 2단계 측정 시작! {angleThresholdCalibrationDuration}초 동안 " +
+                  "지금 자세(한계각도)를 그대로 유지해주세요.");
+        yield return StartCoroutine(CalibrateAngleThreshold());
+
+        Debug.Log("[fass] 통합 캘리브레이션 완료! 무표정 기준값과 각도 임계값이 모두 설정되었습니다.");
+        isCalibratingSequence = false;
     }
 }
