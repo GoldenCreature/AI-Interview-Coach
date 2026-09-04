@@ -10,8 +10,10 @@
 //      SQLiteConnection을 새로 열어서(같은 파일에 대해) 사용.
 //
 // ⚠ 이 스크립트는 "만약 백그라운드 스레드에서 DB를 직접 건드리면 어떻게
-//   되는가"를 보여줄 뿐입니다. 
-//
+//   되는가"를 보여줄 뿐입니다. 실제로 Gemini API 콜백이나 MediaPipe 처리
+//   스레드가 DB를 직접 호출하고 있는지는 해당 모듈 코드를 봐야 알 수 있고,
+//   이 스크립트로는 확인할 수 없음 — 그 부분은 팀원 확인이 필요.
+// ============================================================
 using System;
 using System.Collections.Concurrent;
 using System.IO;
@@ -88,7 +90,6 @@ namespace InterviewDb.Testing
                 conn.Insert(new InterviewSession
                 {
                     JobCategory = $"스레드{idx}",
-                    InterviewLang = "KO",
                     SessionStatus = "Completed",
                     StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
                 });
@@ -114,7 +115,6 @@ namespace InterviewDb.Testing
                     conn.Insert(new InterviewSession
                     {
                         JobCategory = $"스레드{idx}",
-                        InterviewLang = "KO",
                         SessionStatus = "Completed",
                         StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
                     });
