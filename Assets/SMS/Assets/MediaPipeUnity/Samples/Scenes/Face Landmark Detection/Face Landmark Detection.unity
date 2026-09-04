@@ -352,8 +352,16 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 2088846858}
     - target: {fileID: 8773518974156083138, guid: 74b27aa9f19f4a54b877fa310f4dac0c, type: 3}
+      propertyPath: enableAngleGate
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8773518974156083138, guid: 74b27aa9f19f4a54b877fa310f4dac0c, type: 3}
       propertyPath: logIntervalMinutes
       value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 8773518974156083138, guid: 74b27aa9f19f4a54b877fa310f4dac0c, type: 3}
+      propertyPath: angleThresholdSafetyMargin
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
