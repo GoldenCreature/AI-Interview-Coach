@@ -14,7 +14,7 @@
 //            conn.Insert(new InterviewSession { ... });
 //        });
 //
-//      → 실제 실행은 항상 다음 Update()에서, 메인 스레드에서 일어납니다.
+//      → 실제 실행은 항상 다음 Update()에서, 메인 스레드에서 일어나게 됨.
 // ============================================================
 using System;
 using System.Collections.Concurrent;
@@ -53,12 +53,12 @@ namespace InterviewDb.Core
 
             // 메인 스레드(Awake)에서만 연결을 생성 — 이 연결은 이후 절대 다른 스레드에서 직접 쓰지 않음
             _conn = new SQLiteConnection(path);
-            SchemaBootstrap.ApplySchema(_conn);
+            SchemaBootstrapHardened.ApplySchema(_conn);
         }
 
         /// <summary>
         /// 어떤 스레드에서 호출해도 안전합니다(ConcurrentQueue 사용).
-        /// 실제 DB 작업은 큐에만 쌓이고, 다음 Update()에서 메인 스레드로 순차 실행됩니다.
+        /// 실제 DB 작업은 큐에만 쌓이고, 다음 Update()에서 메인 스레드로 순차 실행됨.
         /// </summary>
         public void Enqueue(Action<SQLiteConnection> dbWork)
         {

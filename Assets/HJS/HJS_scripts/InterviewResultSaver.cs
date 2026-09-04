@@ -66,7 +66,6 @@ namespace HJS
                 var session = new InterviewSession
                 {
                     JobCategory = job,
-                    InterviewLang = "KO",
                     SessionStatus = "Completed",
                     StartTime = startTime,
                     EndTime = endTime,
@@ -117,32 +116,45 @@ namespace HJS
                     return;
                 }
 
-                var result = new SessionResult
+                // SessionResult → SessionResultHardened 교체
+                // 새 컬럼 구조에 맞게 각 영역별로 분리 저장
+                var result = new SessionResultHardened
                 {
                     SessionId = sessionId,
 
-                    // 음성 영역 점수 (5점 만점)
+                    // 음성 영역
                     ScoreAudio = resultData.VoiceScore,
+                    EvalAudioText = resultData.VoiceResult,
+                    AdviceAudioText = resultData.VoiceImprovement,
 
-                    // 내용 영역 점수 (5점 만점)
+                    // 내용 영역
                     ScoreContent = resultData.ContentScore,
+                    EvalContentText = resultData.ContentResult,
+                    AdviceContentText = resultData.ContentImprovement,
 
                     // 태도 점수 → TODO: [신모세] MediaPipe 연동 후 추가
                     ScoreAttitude = null,
 
-                    // 평가결과/개선사항 → 현재 컬럼 구조에 맞게 임시로 합쳐서 저장
-                    // TODO: [이재혁] 컬럼 추가 후 분리 저장으로 교체
-                    SummaryText = $"[음성] {resultData.VoiceResult}\n[내용] {resultData.ContentResult}",
-                    AdviceText = $"[음성] {resultData.VoiceImprovement}\n[내용] {resultData.ContentImprovement}",
+                    // total_score → TODO: [신모세] SetTotalScore() 호출로 채워짐
+                    TotalScore = null,
 
-                    CreatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                    // 공용 총평/개선가이드 → 현재 미사용
+                    SummaryText = null,
+                    AdviceText = null,
+
+                    CreatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Version = 1
                 };
 
                 conn.Insert(result);
-                Debug.Log($"[InterviewResultSaver] Session_Result 저장 완료" +
-                          $" (session_id: {sessionId}, " +
-                          $"음성: {resultData.VoiceScore}/5, " +
-                          $"내용: {resultData.ContentScore}/5)");
+                Debug.Log($"[InterviewResultSaver] Session_Result 저장 완료\n" +
+                  $"session_id: {sessionId}\n" +
+                  $"음성 점수: {resultData.VoiceScore}/5\n" +
+                  $"음성 평가결과: {resultData.VoiceResult}\n" +
+                  $"음성 개선사항: {resultData.VoiceImprovement}\n" +
+                  $"내용 점수: {resultData.ContentScore}/5\n" +
+                  $"내용 평가결과: {resultData.ContentResult}\n" +
+                  $"내용 개선사항: {resultData.ContentImprovement}");
             });
         }
 
