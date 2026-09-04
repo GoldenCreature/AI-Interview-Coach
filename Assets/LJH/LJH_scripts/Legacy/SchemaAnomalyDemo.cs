@@ -2,9 +2,9 @@
 // SchemaAnomalyDemo.cs
 // ------------------------------------------------------------
 // 목적: 스키마 자체는 전혀 수정하지 않고, "쿼리 사용 패턴"만으로 실제 발생할 수
-//       있는 DB 이상현상(anomaly)들을 gilzoide(unity-sqlite-net) 위에서 재현합니다.
+//       있는 DB 이상현상(anomaly)들을 gilzoide(unity-sqlite-net) 위에서 재현함.
 //       Console에 [이상현상 발생]이 뜨면 실제로 재현된 것이고,
-//       [정상 차단]이 뜨면 스키마 제약이 정상적으로 막아준 것입니다.
+//       [정상 차단]이 뜨면 스키마 제약이 정상적으로 막아준 것임.
 //
 // 재현하는 이상현상 목록:
 //   ① 싱글턴 삽입 시도       — App_Setting 2번째 행 삽입 (정상적으로는 차단되어야 함, 대조군)
@@ -15,8 +15,8 @@
 //   ⑥ 참조 무결성 이상       — PRAGMA foreign_keys가 연결 단위 설정임을 이용한 고아 행 생성
 //   ⑦ 갱신 손실(Lost Update) — 두 연결이 같은 행을 동시에 읽고-계산-써서 한쪽 갱신이 소실
 //
-// ⚠ 주의: 이 스크립트는 "의도적으로" 데이터 무결성을 깨뜨립니다.
-//         반드시 실제 서비스 DB가 아닌 별도의 데모 전용 DB 파일에서만 실행하세요.
+// ⚠ 주의: 이 스크립트는 "의도적으로" 데이터 무결성을 깨뜨림.
+//         반드시 실제 서비스 DB가 아닌 별도의 데모 전용 DB 파일에서만 실행하여야 함.
 // ============================================================
 using System;
 using System.Linq;
@@ -78,7 +78,7 @@ namespace InterviewDb.Testing
         // 데모②: 갱신 이상(Update Anomaly) — score_audio만 갱신하고 total_score(파생값)는 방치
         private void Demo2_UpdateAnomaly_StaleTotalScore(SQLiteConnection conn)
         {
-            var session = NewSession("마케팅", "KO", "Completed", withEndTime: true);
+            var session = NewSession("마케팅", "Completed", withEndTime: true);
             conn.Insert(session);
             conn.Insert(new SessionResult
             {
@@ -108,7 +108,7 @@ namespace InterviewDb.Testing
         // 데모③: 도메인 이상 — session_status에 정의되지 않은 값도 제약 없이 저장됨
         private void Demo3_DomainAnomaly_InvalidStatus(SQLiteConnection conn)
         {
-            var session = NewSession("금융", "KO", "완전히_잘못된_상태값", withEndTime: false);
+            var session = NewSession("금융", "완전히_잘못된_상태값", withEndTime: false);
             conn.Insert(session);
 
             var reread = conn.Get<InterviewSession>(session.SessionId);
@@ -127,7 +127,6 @@ namespace InterviewDb.Testing
             var session = new InterviewSession
             {
                 JobCategory = "IT개발자",
-                InterviewLang = "EN",
                 SessionStatus = "Completed",
                 StartTime = "2026-07-31 15:00:00",
                 EndTime = "2026-07-31 14:00:00"
@@ -148,7 +147,7 @@ namespace InterviewDb.Testing
         // 데모⑤: conversation_log는 JSON 배열 문자열이라 DB가 형식/값 검증을 전혀 못함 (1NF성 이상)
         private void Demo5_1NFAnomaly_MalformedJsonLog(SQLiteConnection conn)
         {
-            var session = NewSession("디자인", "KO", "Completed", withEndTime: true);
+            var session = NewSession("디자인", "Completed", withEndTime: true);
             // 괄호가 닫히지 않은 깨진 JSON + 정의되지 않은 speaker("Robot") 값
             session.ConversationLog = "[{\"speaker\":\"Robot\",\"text\":\"질문입니다\",";
             conn.Insert(session);
@@ -199,7 +198,7 @@ namespace InterviewDb.Testing
             using (var connA = new SQLiteConnection(path))
             using (var connB = new SQLiteConnection(path))
             {
-                var session = NewSession("IT개발자", "KO", "Completed", withEndTime: true);
+                var session = NewSession("IT개발자", "Completed", withEndTime: true);
                 connA.Insert(session);
                 connA.Insert(new SessionResult
                 {
@@ -219,21 +218,23 @@ namespace InterviewDb.Testing
                 connB.Update(readB); // 4.0으로 덮어씀 → A의 갱신이 사라짐
 
                 var final = connA.Get<SessionResult>(session.SessionId);
-                if (Math.Abs(final.TotalScore.Value - 3.5) < 0.0001)
+                // 실행 순서상 connB.Update가 나중에 일어나므로 "나중에 쓴 값(4.0)"이 최종값이 되고,
+                // 먼저 반영됐던 connA의 갱신(3.5)은 사라지는 것이 Lost Update의 정상적인 재현 결과.
+                if (Math.Abs(final.TotalScore.Value - 4.0) < 0.0001)
                 {
                     Debug.LogWarning(
                         $"[이상현상 발생: 갱신 손실(Lost Update)] 최종 total_score={final.TotalScore.Value} " +
-                        "→ A의 갱신(+0.5)이 B의 갱신(+1.0)에 덮어써져 사라짐");
+                        "→ A가 먼저 반영한 값(3.5, +0.5 보정)이 B의 나중 갱신(4.0, +1.0 보정)에 덮어써져 사라짐 " +
+                        "(두 보정이 모두 반영됐다면 4.5가 되어야 함)");
                 }
             }
         }
 
-        private InterviewSession NewSession(string job, string lang, string status, bool withEndTime)
+        private InterviewSession NewSession(string job, string status, bool withEndTime)
         {
             var s = new InterviewSession
             {
                 JobCategory = job,
-                InterviewLang = lang,
                 SessionStatus = status,
                 StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
             };
