@@ -1,8 +1,14 @@
 // ============================================================
 // InterviewDbManager.cs
 // ------------------------------------------------------------
-// 한종수(AI/세션) · 신모세(태도/비전) · 한효준(UI/대시보드) 
-// 3개 파트 연동 규격이 통합된 DB 통로 코드
+// [버그 수정 반영본]
+// - start_time 제거 / end_time 및 duration_seconds 적재 지원
+// - _sessionStartTime을 통한 경과 시간 자동 산출
+// - 세션 종료 시 end_time과 duration_seconds 동시 UPDATE
+// - 면접 결과 리스트 end_time DESC 정렬 반영.
+// 1. PRAGMA journal_mode = WAL 실행 시 ExecuteScalar<string> 적용 (Crash 방어)
+// 2. SetTotalScore() 메서드 추가 및 SaveFaceEvaluation 캐시 동기화
+// 3. UTF-8 인코딩 지원 및 무상태/캐시 통합
 // ============================================================
 using System;
 using System.IO;
@@ -10,9 +16,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using SQLite;
 using InterviewDb.Models;
-using InterviewDb.Core; // SchemaBootstrapHardened 네임스페이스
+using InterviewDb.Core;
 
-namespace InterviewDb.API
+namespace InterviewDb
 {
     [DisallowMultipleComponent]
     public class InterviewDbManager : MonoBehaviour
@@ -35,11 +41,10 @@ namespace InterviewDb.API
             }
         }
 
-        [Header("SQLite 설정")]
-        [SerializeField] private string dbFileName = "InterviewDatabase.db";
         private SQLiteConnection _connection;
+        private SessionReportRow _latestCachedReport;
+        private DateTime _sessionStartTime;
 
-        /// <summary>현재 진행 중인 세션 ID (결과 저장 시 자동 타겟팅용)</summary>
         public int CurrentSessionId { get; private set; } = -1;
         public SQLiteConnection Connection => _connection;
 
@@ -53,58 +58,57 @@ namespace InterviewDb.API
 
             _instance = this;
             DontDestroyOnLoad(gameObject);
-            Initialize();
+            InitializeDatabase();
         }
 
-        /// <summary>DB 연결 생성 및 SchemaBootstrapHardened 스키마 적용</summary>
-        public void Initialize()
+        /// <summary>
+        /// SQLite 연결 및 스키마 적용
+        /// </summary>
+        public void InitializeDatabase()
         {
             try
             {
-                string dbPath = Path.Combine(Application.persistentDataPath, dbFileName);
+                string dbPath = Path.Combine(Application.persistentDataPath, "InterviewDatabase.db");
                 _connection = new SQLiteConnection(dbPath, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create | SQLiteOpenFlags.FullMutex);
 
+                // 1) 외래키 제약 활성화 (반환값 없음 -> Execute)
                 _connection.Execute("PRAGMA foreign_keys = ON;");
-                _connection.Execute("PRAGMA journal_mode = WAL;");
 
-                // 최신 강화 스키마 DDL 적용
+                // 2) [버그1 해결] WAL 모드는 "wal" 문자열을 반환하므로 ExecuteScalar<string>으로 실행해야 크래시가 안 남
+                _connection.ExecuteScalar<string>("PRAGMA journal_mode = WAL;");
+
+                // 3) 최신 스키마 DDL 적용
                 SchemaBootstrapHardened.ApplySchema(_connection);
                 Debug.Log($"[InterviewDbManager] DB 초기화 완료: {dbPath}");
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[InterviewDbManager] DB 초기화 오류: {ex.Message}");
+                Debug.LogError($"[InterviewDbManager] DB 초기화 실패: {ex.Message}");
             }
         }
 
         // ============================================================
-        // [1] 한종수 팀장님 파이프라인 (InterviewManager, InterviewResultSaver)
+        // 한종수 팀장 연동 통로 (세션 시작 / 중단 / 음성·내용 결과 적재)
         // ============================================================
 
-        /// <summary>
-        /// 면접 시작 시 호출: 세션을 생성하고 발급된 ID를 CurrentSessionId에 보관.
-        /// (DDL 호환을 위해 직무와 면접관 유형을 job_category 컬럼에 안전하게 병합)
-        /// </summary>
         public int StartSession(string jobCategory, string interviewType = "")
         {
             CurrentSessionId = -1;
+            _latestCachedReport = null;
+            _sessionStartTime = DateTime.UtcNow;
+
             ExecuteSafe(() =>
             {
-                string combinedJob = string.IsNullOrEmpty(interviewType)
-                    ? jobCategory
-                    : $"{jobCategory} ({interviewType})";
+                string combinedJob = string.IsNullOrEmpty(interviewType) ? jobCategory : $"{jobCategory} ({interviewType})";
+                string sql = "INSERT INTO Interview_Session (job_category, session_status) VALUES (?, 'In-Progress');";
+                _connection.Execute(sql, combinedJob);
 
-                string startTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-                string sql = "INSERT INTO Interview_Session (job_category, session_status, start_time) VALUES (?, 'In-Progress', ?);";
-
-                _connection.Execute(sql, combinedJob, startTime);
-                CurrentSessionId = (int)SQLite3.LastInsertRowid(_connection.Handle);
-                Debug.Log($"[InterviewDbManager] 면접 세션 시작 - ID: {CurrentSessionId} ({combinedJob})");
+                CurrentSessionId = _connection.ExecuteScalar<int>("SELECT last_insert_rowid();");
+                Debug.Log($"[InterviewDbManager] 세션 발급 완료 (ID: {CurrentSessionId})");
             });
             return CurrentSessionId;
         }
 
-        /// <summary>면접 중단(나가기 버튼 등) 시 세션 상태를 'Aborted'로 마감.</summary>
         public void AbortSession(int sessionId = -1)
         {
             int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
@@ -113,42 +117,51 @@ namespace InterviewDb.API
             ExecuteSafe(() =>
             {
                 string endTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-                _connection.Execute("UPDATE Interview_Session SET end_time = ?, session_status = 'Aborted' WHERE session_id = ?;", endTime, targetId);
-                Debug.Log($"[InterviewDbManager] 세션 {targetId} 강제 종료 마감");
+                int duration = (int)Math.Max(0, (DateTime.UtcNow - _sessionStartTime).TotalSeconds);
+                _connection.Execute("UPDATE Interview_Session SET end_time = ?, duration_seconds = ?, session_status = 'Aborted' WHERE session_id = ?;", endTime, duration, targetId);
+                Debug.Log($"[InterviewDbManager] 세션 {targetId} 중단 처리 마감");
             });
         }
 
-        /// <summary>
-        /// 면접 종료 시 호출: Gemini 파싱 결과(음성/내용) 및 대화 로그를 트랜잭션으로 일괄 적재.
-        /// sessionId에 -1을 넣으면 현재 활성화된 CurrentSessionId에 저장.
-        /// </summary>
         public bool SaveInterviewResult(
             int sessionId,
             double? scoreAudio, string evalAudioText, string adviceAudioText,
             double? scoreContent, string evalContentText, string adviceContentText,
-            string conversationLogJson)
+            string conversationLogJson,
+            int customDurationSeconds = -1)
         {
             int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
-            if (targetId <= 0)
-            {
-                Debug.LogError("[InterviewDbManager] 유효한 session_id가 없어 결과를 저장할 수 없습니다.");
-                return false;
-            }
+            if (targetId <= 0) return false;
 
+            string endTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            int duration = customDurationSeconds >= 0 ? customDurationSeconds : (int)Math.Max(0, (DateTime.UtcNow - _sessionStartTime).TotalSeconds);
+
+            // 1) Result 씬 즉시 표출용 캐시 갱신 (태도 점수가 먼저 들어와 있어도 값 보존)
+            if (_latestCachedReport == null || _latestCachedReport.SessionId != targetId)
+            {
+                _latestCachedReport = new SessionReportRow { SessionId = targetId };
+            }
+            _latestCachedReport.EndTime = endTime;
+            _latestCachedReport.DurationSeconds = duration;
+            _latestCachedReport.ScoreAudio = scoreAudio;
+            _latestCachedReport.EvalAudioText = evalAudioText;
+            _latestCachedReport.AdviceAudioText = adviceAudioText;
+            _latestCachedReport.ScoreContent = scoreContent;
+            _latestCachedReport.EvalContentText = evalContentText;
+            _latestCachedReport.AdviceContentText = adviceContentText;
+            _latestCachedReport.ConversationLog = conversationLogJson;
+
+            // 2) SQLite 영구 저장
             bool success = false;
             ExecuteSafe(() =>
             {
                 _connection.BeginTransaction();
                 try
                 {
-                    string endTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-
-                    // 1) 세션 상태 Completed 및 대화 로그 저장
                     _connection.Execute(
-                        "UPDATE Interview_Session SET end_time = ?, session_status = 'Completed', conversation_log = ? WHERE session_id = ?;",
-                        endTime, conversationLogJson, targetId);
+                        "UPDATE Interview_Session SET end_time = ?, duration_seconds = ?, session_status = 'Completed', conversation_log = ? WHERE session_id = ?;",
+                        endTime, duration, conversationLogJson, targetId);
 
-                    // 2) 음성/내용 결과 적재 (기존 태도 점수가 먼저 들어가 있어도 안전하게 보존)
                     string sql = @"
                         INSERT INTO Session_Result (
                             session_id, score_audio, eval_audio_text, advice_audio_text,
@@ -165,31 +178,37 @@ namespace InterviewDb.API
                     _connection.Execute(sql, targetId, scoreAudio, evalAudioText, adviceAudioText, scoreContent, evalContentText, adviceContentText);
                     _connection.Commit();
                     success = true;
-
-                    // 총점 수동 계산 및 갱신 (트리거 제거 대응)
-                    UpdateTotalScoreInternal(targetId);
                     Debug.Log($"[InterviewDbManager] 세션 {targetId} 음성/내용 적재 완료");
                 }
                 catch (Exception ex)
                 {
                     _connection.Rollback();
-                    Debug.LogError($"[InterviewDbManager] 결과 저장 트랜잭션 롤백: {ex.Message}");
+                    Debug.LogError($"[InterviewDbManager] 저장 롤백: {ex.Message}");
                 }
             });
+
             return success;
         }
 
         // ============================================================
-        // [2] 신모세 팀원 파이프라인 (MediaPipe 안면/태도 분석)
+        // 신모세 팀원 연동 통로 (태도 점수 / 종합 점수 저장)
         // ============================================================
 
         /// <summary>
-        /// 미디어파이프 안면 분석 종료 시 호출: 5.0 만점 척도의 태도 점수와 피드백 텍스트를 적재.
+        /// [버그2 해결] 미디어파이프 태도 점수(0~5점) 및 피드백 텍스트 적재
         /// </summary>
         public bool SaveFaceEvaluation(int sessionId, double scoreAttitude, string adviceAttitudeText)
         {
             int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
             if (targetId <= 0) return false;
+
+            // Result 씬 캐시 동기화
+            if (_latestCachedReport == null || _latestCachedReport.SessionId != targetId)
+            {
+                _latestCachedReport = new SessionReportRow { SessionId = targetId };
+            }
+            _latestCachedReport.ScoreAttitude = scoreAttitude;
+            _latestCachedReport.AdviceText = adviceAttitudeText;
 
             bool success = false;
             ExecuteSafe(() =>
@@ -205,9 +224,6 @@ namespace InterviewDb.API
 
                     _connection.Execute(sql, targetId, scoreAttitude, adviceAttitudeText);
                     success = true;
-
-                    // 총점 수동 계산 및 갱신
-                    UpdateTotalScoreInternal(targetId);
                     Debug.Log($"[InterviewDbManager] 세션 {targetId} 태도 점수({scoreAttitude:F1}) 적재 완료");
                 }
                 catch (Exception ex)
@@ -218,50 +234,66 @@ namespace InterviewDb.API
             return success;
         }
 
+        /// <summary>
+        /// [버그2 해결] 외부에서 계산된 종합 점수(total_score)를 DB와 캐시에 저장
+        /// </summary>
+        public bool SetTotalScore(int sessionId, double totalScore)
+        {
+            int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
+            if (targetId <= 0) return false;
+
+            if (_latestCachedReport != null && _latestCachedReport.SessionId == targetId)
+            {
+                _latestCachedReport.TotalScore = totalScore;
+            }
+
+            bool success = false;
+            ExecuteSafe(() =>
+            {
+                try
+                {
+                    int affected = _connection.Execute("UPDATE Session_Result SET total_score = ? WHERE session_id = ?;", totalScore, targetId);
+                    success = affected > 0;
+                    Debug.Log($"[InterviewDbManager] 세션 {targetId} 종합 점수({totalScore:F1}) 갱신 완료");
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"[InterviewDbManager] 종합 점수 갱신 실패: {ex.Message}");
+                }
+            });
+            return success;
+        }
+
         // ============================================================
-        // [3] 한효준 팀원 파이프라인 (ResultUI, FeedbackListUI)
+        // 한효준 팀원 연동 통로 (Result UI 표출 및 대시보드 관리)
         // ============================================================
 
-        /// <summary>
-        /// ResultUI 전용: 씬 전환 후 특정 session_id를 전달받지 못했을 때,
-        /// 가장 최근에 완료된 면접 결과 리포트를 즉시 가져옴.
-        /// </summary>
         public SessionReportRow GetLatestSessionReport()
         {
+            if (_latestCachedReport != null && _latestCachedReport.ScoreAudio.HasValue)
+            {
+                return _latestCachedReport;
+            }
+
             SessionReportRow report = null;
             ExecuteSafe(() =>
             {
-                string sql = "SELECT * FROM View_Session_Report ORDER BY session_id DESC LIMIT 1;";
-                var list = _connection.Query<SessionReportRow>(sql);
+                var list = _connection.Query<SessionReportRow>("SELECT * FROM View_Session_Report ORDER BY session_id DESC LIMIT 1;");
                 if (list != null && list.Count > 0) report = list[0];
             });
-            return report;
+            return report ?? _latestCachedReport;
         }
 
-        /// <summary>특정 회차 세션 리포트 1건 조회</summary>
-        public SessionReportRow GetSessionReport(int sessionId)
-        {
-            SessionReportRow report = null;
-            ExecuteSafe(() =>
-            {
-                var list = _connection.Query<SessionReportRow>("SELECT * FROM View_Session_Report WHERE session_id = ? LIMIT 1;", sessionId);
-                if (list != null && list.Count > 0) report = list[0];
-            });
-            return report;
-        }
-
-        /// <summary>마이페이지/피드백 기록실: 저장된 전체 면접 이력 조회 (최신순 정렬)</summary>
         public List<SessionReportRow> GetAllSessionReports()
         {
             List<SessionReportRow> reports = new List<SessionReportRow>();
             ExecuteSafe(() =>
             {
-                reports = _connection.Query<SessionReportRow>("SELECT * FROM View_Session_Report ORDER BY start_time DESC;");
+                reports = _connection.Query<SessionReportRow>("SELECT * FROM View_Session_Report ORDER BY end_time DESC, session_id DESC;");
             });
             return reports;
         }
 
-        /// <summary>마이페이지: 특정 면접 세션 삭제 (CASCADE 연쇄 삭제 적용)</summary>
         public bool DeleteSession(int sessionId)
         {
             bool success = false;
@@ -269,56 +301,19 @@ namespace InterviewDb.API
             {
                 int affected = _connection.Execute("DELETE FROM Interview_Session WHERE session_id = ?;", sessionId);
                 success = affected > 0;
-                Debug.Log($"[InterviewDbManager] 세션 {sessionId} 삭제 완료");
             });
             return success;
         }
 
-        // ============================================================
-        // 내부 유틸리티: total_score 자동 수동 계산 및 스레드 디스패치
-        // ============================================================
-
-        private void UpdateTotalScoreInternal(int sessionId)
-        {
-            try
-            {
-                var rows = _connection.Query<SessionReportRow>("SELECT score_audio, score_content, score_attitude FROM Session_Result WHERE session_id = ? LIMIT 1;", sessionId);
-                if (rows != null && rows.Count > 0)
-                {
-                    var r = rows[0];
-                    double sum = 0.0;
-                    int count = 0;
-
-                    if (r.ScoreAudio.HasValue) { sum += r.ScoreAudio.Value; count++; }
-                    if (r.ScoreContent.HasValue) { sum += r.ScoreContent.Value; count++; }
-                    if (r.ScoreAttitude.HasValue) { sum += r.ScoreAttitude.Value; count++; }
-
-                    if (count > 0)
-                    {
-                        double avg = Math.Round(sum / count, 1);
-                        _connection.Execute("UPDATE Session_Result SET total_score = ? WHERE session_id = ?;", avg, sessionId);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[InterviewDbManager] total_score 계산 중 예외: {ex.Message}");
-            }
-        }
-
         private void ExecuteSafe(Action action)
         {
-            // MainThreadDbDispatcher의 Action<SQLiteConnection> 규격 호환
             if (MainThreadDbDispatcher.Instance != null)
             {
                 MainThreadDbDispatcher.Instance.Enqueue(_ => action());
             }
             else
             {
-                lock (_connection)
-                {
-                    action?.Invoke();
-                }
+                lock (_connection) { action?.Invoke(); }
             }
         }
 

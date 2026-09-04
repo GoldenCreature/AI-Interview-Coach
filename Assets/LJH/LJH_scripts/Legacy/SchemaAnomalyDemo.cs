@@ -128,7 +128,7 @@ namespace InterviewDb.Testing
             {
                 JobCategory = "IT개발자",
                 SessionStatus = "Completed",
-                StartTime = "2026-07-31 15:00:00",
+                //StartTime = "2026-07-31 15:00:00",
                 EndTime = "2026-07-31 14:00:00"
             };
             conn.Insert(session);
@@ -236,7 +236,7 @@ namespace InterviewDb.Testing
             {
                 JobCategory = job,
                 SessionStatus = status,
-                StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                //StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
             };
             if (withEndTime) s.EndTime = DateTime.Now.AddMinutes(10).ToString("yyyy-MM-dd HH:mm:ss");
             return s;

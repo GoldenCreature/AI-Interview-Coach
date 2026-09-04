@@ -27,11 +27,12 @@ namespace InterviewDb.Models
         [Column("session_status")]
         public string SessionStatus { get; set; }
 
-        [Column("start_time")]
-        public string StartTime { get; set; }
-
+        // StartTime은 삭제되고, EndTime과 DurationSeconds가 바인딩됩니다.
         [Column("end_time")]
         public string EndTime { get; set; }
+
+        [Column("duration_seconds")]
+        public int? DurationSeconds { get; set; }
 
         [Column("conversation_log")]
         public string ConversationLog { get; set; }
