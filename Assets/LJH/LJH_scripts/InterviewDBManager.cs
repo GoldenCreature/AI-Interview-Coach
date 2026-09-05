@@ -1,14 +1,13 @@
 // ============================================================
 // InterviewDbManager.cs
 // ------------------------------------------------------------
-// [¹ö±× ¼öÁ¤ ¹İ¿µº»]
-// - start_time Á¦°Å / end_time ¹× duration_seconds ÀûÀç Áö¿ø
-// - _sessionStartTimeÀ» ÅëÇÑ °æ°ú ½Ã°£ ÀÚµ¿ »êÃâ
-// - ¼¼¼Ç Á¾·á ½Ã end_time°ú duration_seconds µ¿½Ã UPDATE
-// - ¸éÁ¢ °á°ú ¸®½ºÆ® end_time DESC Á¤·Ä ¹İ¿µ.
-// 1. PRAGMA journal_mode = WAL ½ÇÇà ½Ã ExecuteScalar<string> Àû¿ë (Crash ¹æ¾î)
-// 2. SetTotalScore() ¸Ş¼­µå Ãß°¡ ¹× SaveFaceEvaluation Ä³½Ã µ¿±âÈ­
-// 3. UTF-8 ÀÎÄÚµù Áö¿ø ¹× ¹«»óÅÂ/Ä³½Ã ÅëÇÕ
+// 
+// 1. PRAGMA journal_mode = WAL ì‹¤í–‰ ì‹œ ExecuteScalar<string> ì ìš© (Crash ë°©ì–´)
+// 2. SetTotalScore() ì¶”ê°€ ë° SaveFaceEvaluation ìºì‹œ ì–‘ë°©í–¥ ë™ê¸°í™”
+// 3. start_time ì œê±°, end_time ë° duration_seconds ë¬¼ë¦¬ ì»¬ëŸ¼ ì €ì¥ ë°˜ì˜
+// 4. ë©”ì¸ ìŠ¤ë ˆë“œ ì¦‰ê° ë™ê¸° ì‹¤í–‰ ë³´ì¥ (ë””ìŠ¤íŒ¨ì²˜ ì§€ì—°ìœ¼ë¡œ ì¸í•œ ë°˜í™˜ê°’ ëˆ„ë½ ë°©ì–´)
+// 5. conversation_log ë¹ˆ ë¬¸ìì—´ ì‹œ JSON íŠ¸ë¦¬ê±° í¬ë˜ì‹œ ë°©ì–´
+//
 // ============================================================
 using System;
 using System.IO;
@@ -44,6 +43,7 @@ namespace InterviewDb
         private SQLiteConnection _connection;
         private SessionReportRow _latestCachedReport;
         private DateTime _sessionStartTime;
+        private int _mainThreadId;
 
         public int CurrentSessionId { get; private set; } = -1;
         public SQLiteConnection Connection => _connection;
@@ -57,12 +57,13 @@ namespace InterviewDb
             }
 
             _instance = this;
+            _mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             DontDestroyOnLoad(gameObject);
             InitializeDatabase();
         }
 
         /// <summary>
-        /// SQLite ¿¬°á ¹× ½ºÅ°¸¶ Àû¿ë
+        /// SQLite ì—°ê²° ìˆ˜ë¦½ ë° ìŠ¤í‚¤ë§ˆ DDL ì ìš©
         /// </summary>
         public void InitializeDatabase()
         {
@@ -71,26 +72,29 @@ namespace InterviewDb
                 string dbPath = Path.Combine(Application.persistentDataPath, "InterviewDatabase.db");
                 _connection = new SQLiteConnection(dbPath, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create | SQLiteOpenFlags.FullMutex);
 
-                // 1) ¿Ü·¡Å° Á¦¾à È°¼ºÈ­ (¹İÈ¯°ª ¾øÀ½ -> Execute)
+                // 1) ì™¸ë˜í‚¤ ì œì•½ì¡°ê±´ í™œì„±í™” (ë°˜í™˜ê°’ ì—†ìŒ -> Execute)
                 _connection.Execute("PRAGMA foreign_keys = ON;");
 
-                // 2) [¹ö±×1 ÇØ°á] WAL ¸ğµå´Â "wal" ¹®ÀÚ¿­À» ¹İÈ¯ÇÏ¹Ç·Î ExecuteScalar<string>À¸·Î ½ÇÇàÇØ¾ß Å©·¡½Ã°¡ ¾È ³²
+                // 2) WAL ëª¨ë“œ í™œì„±í™” (ë¬¸ìì—´ "wal" ë°˜í™˜ -> ExecuteScalar<string> í•„ìˆ˜)
                 _connection.ExecuteScalar<string>("PRAGMA journal_mode = WAL;");
 
-                // 3) ÃÖ½Å ½ºÅ°¸¶ DDL Àû¿ë
+                // 3) SchemaBootstrapHardened ìŠ¤í‚¤ë§ˆ DDL ì ìš©
                 SchemaBootstrapHardened.ApplySchema(_connection);
-                Debug.Log($"[InterviewDbManager] DB ÃÊ±âÈ­ ¿Ï·á: {dbPath}");
+                Debug.Log($"[InterviewDbManager] DB ì´ˆê¸°í™” ì™„ë£Œ: {dbPath}");
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[InterviewDbManager] DB ÃÊ±âÈ­ ½ÇÆĞ: {ex.Message}");
+                Debug.LogError($"[InterviewDbManager] DB ì´ˆê¸°í™” ì‹¤íŒ¨: {ex.Message}");
             }
         }
 
         // ============================================================
-        // ÇÑÁ¾¼ö ÆÀÀå ¿¬µ¿ Åë·Î (¼¼¼Ç ½ÃÀÛ / Áß´Ü / À½¼º¡¤³»¿ë °á°ú ÀûÀç)
+        // í•œì¢…ìˆ˜ íŒ€ì¥ ì—°ë™ í†µë¡œ (ë©´ì ‘ ì„¸ì…˜ ì‹œì‘ / ì¤‘ë‹¨ / ìŒì„±Â·ë‚´ìš© ê²°ê³¼ ì ì¬)
         // ============================================================
 
+        /// <summary>
+        /// ë©´ì ‘ ì‹œì‘ ì‹œ í˜¸ì¶œ: ì„¸ì…˜ ë ˆì½”ë“œë¥¼ ìƒì„±í•˜ê³  ë°œê¸‰ëœ IDë¥¼ ë°˜í™˜ ë° ë³´ê´€í•©ë‹ˆë‹¤.
+        /// </summary>
         public int StartSession(string jobCategory, string interviewType = "")
         {
             CurrentSessionId = -1;
@@ -104,11 +108,15 @@ namespace InterviewDb
                 _connection.Execute(sql, combinedJob);
 
                 CurrentSessionId = _connection.ExecuteScalar<int>("SELECT last_insert_rowid();");
-                Debug.Log($"[InterviewDbManager] ¼¼¼Ç ¹ß±Ş ¿Ï·á (ID: {CurrentSessionId})");
+                Debug.Log($"[InterviewDbManager] ì„¸ì…˜ ë°œê¸‰ ì™„ë£Œ (ID: {CurrentSessionId})");
             });
+
             return CurrentSessionId;
         }
 
+        /// <summary>
+        /// ë©´ì ‘ ì¤‘ë‹¨(ë‚˜ê°€ê¸° ë²„íŠ¼ ë“±) ì‹œ ì„¸ì…˜ ìƒíƒœë¥¼ 'Aborted'ë¡œ ì •ìƒ ë§ˆê°í•©ë‹ˆë‹¤.
+        /// </summary>
         public void AbortSession(int sessionId = -1)
         {
             int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
@@ -117,12 +125,19 @@ namespace InterviewDb
             ExecuteSafe(() =>
             {
                 string endTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-                int duration = (int)Math.Max(0, (DateTime.UtcNow - _sessionStartTime).TotalSeconds);
+                int duration = _sessionStartTime != default
+                    ? (int)Math.Max(0, (DateTime.UtcNow - _sessionStartTime).TotalSeconds)
+                    : 0;
+
                 _connection.Execute("UPDATE Interview_Session SET end_time = ?, duration_seconds = ?, session_status = 'Aborted' WHERE session_id = ?;", endTime, duration, targetId);
-                Debug.Log($"[InterviewDbManager] ¼¼¼Ç {targetId} Áß´Ü Ã³¸® ¸¶°¨");
+                Debug.Log($"[InterviewDbManager] ì„¸ì…˜ {targetId} ì¤‘ë‹¨ ì²˜ë¦¬ ì™„ë£Œ");
             });
         }
 
+        /// <summary>
+        /// Gemini íŒŒì‹± ê²°ê³¼ ë° ëŒ€í™” ë¡œê·¸ë¥¼ íŠ¸ëœì­ì…˜ìœ¼ë¡œ ì¼ê´„ ì˜êµ¬ ì €ì¥í•©ë‹ˆë‹¤.
+        /// Result ì”¬ ì¦‰ì‹œ í‘œì¶œì„ ìœ„í•´ ì¸ë©”ëª¨ë¦¬ ìºì‹œë„ í•¨ê»˜ ë™ê¸°í™”ë©ë‹ˆë‹¤.
+        /// </summary>
         public bool SaveInterviewResult(
             int sessionId,
             double? scoreAudio, string evalAudioText, string adviceAudioText,
@@ -134,9 +149,14 @@ namespace InterviewDb
             if (targetId <= 0) return false;
 
             string endTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-            int duration = customDurationSeconds >= 0 ? customDurationSeconds : (int)Math.Max(0, (DateTime.UtcNow - _sessionStartTime).TotalSeconds);
+            int duration = customDurationSeconds >= 0
+                ? customDurationSeconds
+                : (_sessionStartTime != default ? (int)Math.Max(0, (DateTime.UtcNow - _sessionStartTime).TotalSeconds) : 0);
 
-            // 1) Result ¾À Áï½Ã Ç¥Ãâ¿ë Ä³½Ã °»½Å (ÅÂµµ Á¡¼ö°¡ ¸ÕÀú µé¾î¿Í ÀÖ¾îµµ °ª º¸Á¸)
+            // JSON ë¹ˆ ë¬¸ìì—´("") ìœ ì… ì‹œ SQLite json_valid íŠ¸ë¦¬ê±° í¬ë˜ì‹œ ë°©ì–´ (null ì¹˜í™˜)
+            string safeLogJson = string.IsNullOrWhiteSpace(conversationLogJson) ? null : conversationLogJson;
+
+            // 1) Result ì”¬ ì¦‰ì‹œ í‘œì¶œìš© ìºì‹œ ê°±ì‹  (íƒœë„ ì ìˆ˜ê°€ ë¨¼ì € ë“¤ì–´ì™€ ìˆì–´ë„ ê°’ ë³´ì¡´)
             if (_latestCachedReport == null || _latestCachedReport.SessionId != targetId)
             {
                 _latestCachedReport = new SessionReportRow { SessionId = targetId };
@@ -149,9 +169,9 @@ namespace InterviewDb
             _latestCachedReport.ScoreContent = scoreContent;
             _latestCachedReport.EvalContentText = evalContentText;
             _latestCachedReport.AdviceContentText = adviceContentText;
-            _latestCachedReport.ConversationLog = conversationLogJson;
+            _latestCachedReport.ConversationLog = safeLogJson;
 
-            // 2) SQLite ¿µ±¸ ÀúÀå
+            // 2) SQLite ì˜êµ¬ ì €ì¥ íŠ¸ëœì­ì…˜
             bool success = false;
             ExecuteSafe(() =>
             {
@@ -160,7 +180,7 @@ namespace InterviewDb
                 {
                     _connection.Execute(
                         "UPDATE Interview_Session SET end_time = ?, duration_seconds = ?, session_status = 'Completed', conversation_log = ? WHERE session_id = ?;",
-                        endTime, duration, conversationLogJson, targetId);
+                        endTime, duration, safeLogJson, targetId);
 
                     string sql = @"
                         INSERT INTO Session_Result (
@@ -178,12 +198,12 @@ namespace InterviewDb
                     _connection.Execute(sql, targetId, scoreAudio, evalAudioText, adviceAudioText, scoreContent, evalContentText, adviceContentText);
                     _connection.Commit();
                     success = true;
-                    Debug.Log($"[InterviewDbManager] ¼¼¼Ç {targetId} À½¼º/³»¿ë ÀûÀç ¿Ï·á");
+                    Debug.Log($"[InterviewDbManager] ì„¸ì…˜ {targetId} ìŒì„±/ë‚´ìš© ì ì¬ ì™„ë£Œ");
                 }
                 catch (Exception ex)
                 {
                     _connection.Rollback();
-                    Debug.LogError($"[InterviewDbManager] ÀúÀå ·Ñ¹é: {ex.Message}");
+                    Debug.LogError($"[InterviewDbManager] ì €ì¥ ë¡¤ë°±: {ex.Message}");
                 }
             });
 
@@ -191,24 +211,28 @@ namespace InterviewDb
         }
 
         // ============================================================
-        // ½Å¸ğ¼¼ ÆÀ¿ø ¿¬µ¿ Åë·Î (ÅÂµµ Á¡¼ö / Á¾ÇÕ Á¡¼ö ÀúÀå)
+        // ì‹ ëª¨ì„¸ íŒ€ì› ì—°ë™ í†µë¡œ (íƒœë„ ì ìˆ˜ / ì¢…í•© ì ìˆ˜ ì €ì¥)
         // ============================================================
 
         /// <summary>
-        /// [¹ö±×2 ÇØ°á] ¹Ìµğ¾îÆÄÀÌÇÁ ÅÂµµ Á¡¼ö(0~5Á¡) ¹× ÇÇµå¹é ÅØ½ºÆ® ÀûÀç
+        /// ë¯¸ë””ì–´íŒŒì´í”„ íƒœë„ ì ìˆ˜(0~5ì ) ë° ê°œì„  ì¡°ì–¸/í‰ê°€ í…ìŠ¤íŠ¸ ì ì¬
         /// </summary>
-        public bool SaveFaceEvaluation(int sessionId, double scoreAttitude, string adviceAttitudeText)
+        public bool SaveFaceEvaluation(int sessionId, double scoreAttitude, string adviceAttitudeText, string evalAttitudeText = null)
         {
             int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
             if (targetId <= 0) return false;
 
-            // Result ¾À Ä³½Ã µ¿±âÈ­
+            // Result ì”¬ ìºì‹œ ì¦‰ì‹œ ë™ê¸°í™”
             if (_latestCachedReport == null || _latestCachedReport.SessionId != targetId)
             {
                 _latestCachedReport = new SessionReportRow { SessionId = targetId };
             }
             _latestCachedReport.ScoreAttitude = scoreAttitude;
             _latestCachedReport.AdviceText = adviceAttitudeText;
+            if (!string.IsNullOrEmpty(evalAttitudeText))
+            {
+                _latestCachedReport.SummaryText = evalAttitudeText;
+            }
 
             bool success = false;
             ExecuteSafe(() =>
@@ -216,26 +240,28 @@ namespace InterviewDb
                 try
                 {
                     string sql = @"
-                        INSERT INTO Session_Result (session_id, score_attitude, advice_text)
-                        VALUES (?, ?, ?)
+                        INSERT INTO Session_Result (session_id, score_attitude, advice_text, summary_text)
+                        VALUES (?, ?, ?, ?)
                         ON CONFLICT(session_id) DO UPDATE SET
                             score_attitude = excluded.score_attitude,
-                            advice_text = excluded.advice_text;";
+                            advice_text = excluded.advice_text,
+                            summary_text = COALESCE(excluded.summary_text, Session_Result.summary_text);";
 
-                    _connection.Execute(sql, targetId, scoreAttitude, adviceAttitudeText);
+                    _connection.Execute(sql, targetId, scoreAttitude, adviceAttitudeText, evalAttitudeText);
                     success = true;
-                    Debug.Log($"[InterviewDbManager] ¼¼¼Ç {targetId} ÅÂµµ Á¡¼ö({scoreAttitude:F1}) ÀûÀç ¿Ï·á");
+                    Debug.Log($"[InterviewDbManager] ì„¸ì…˜ {targetId} íƒœë„ ì ìˆ˜({scoreAttitude:F1}) ì ì¬ ì™„ë£Œ");
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"[InterviewDbManager] ÅÂµµ µ¥ÀÌÅÍ ÀúÀå ½ÇÆĞ: {ex.Message}");
+                    Debug.LogError($"[InterviewDbManager] íƒœë„ ë°ì´í„° ì €ì¥ ì‹¤íŒ¨: {ex.Message}");
                 }
             });
+
             return success;
         }
 
         /// <summary>
-        /// [¹ö±×2 ÇØ°á] ¿ÜºÎ¿¡¼­ °è»êµÈ Á¾ÇÕ Á¡¼ö(total_score)¸¦ DB¿Í Ä³½Ã¿¡ ÀúÀå
+        /// ì™¸ë¶€ ëª¨ë“ˆì—ì„œ ê³„ì‚°ëœ ìµœì¢… ì¢…í•© ì ìˆ˜(total_score)ë¥¼ DBì™€ ìºì‹œì— ì €ì¥
         /// </summary>
         public bool SetTotalScore(int sessionId, double totalScore)
         {
@@ -254,20 +280,24 @@ namespace InterviewDb
                 {
                     int affected = _connection.Execute("UPDATE Session_Result SET total_score = ? WHERE session_id = ?;", totalScore, targetId);
                     success = affected > 0;
-                    Debug.Log($"[InterviewDbManager] ¼¼¼Ç {targetId} Á¾ÇÕ Á¡¼ö({totalScore:F1}) °»½Å ¿Ï·á");
+                    Debug.Log($"[InterviewDbManager] ì„¸ì…˜ {targetId} ì¢…í•© ì ìˆ˜({totalScore:F1}) ê°±ì‹  ì™„ë£Œ");
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"[InterviewDbManager] Á¾ÇÕ Á¡¼ö °»½Å ½ÇÆĞ: {ex.Message}");
+                    Debug.LogError($"[InterviewDbManager] ì¢…í•© ì ìˆ˜ ê°±ì‹  ì‹¤íŒ¨: {ex.Message}");
                 }
             });
+
             return success;
         }
 
         // ============================================================
-        // ÇÑÈ¿ÁØ ÆÀ¿ø ¿¬µ¿ Åë·Î (Result UI Ç¥Ãâ ¹× ´ë½Ãº¸µå °ü¸®)
+        // í•œíš¨ì¤€ íŒ€ì› ì—°ë™ í†µë¡œ (Result UI í‘œì¶œ ë° ëŒ€ì‹œë³´ë“œ ê´€ë¦¬)
         // ============================================================
 
+        /// <summary>
+        /// Result ì”¬ ì „ìš©: ë©”ëª¨ë¦¬ ìºì‹œê°€ ìˆìœ¼ë©´ ì¦‰ì‹œ ë°˜í™˜, ì—†ì„ ê²½ìš° DB ìµœì‹  íšŒì°¨ ì¡°íšŒ
+        /// </summary>
         public SessionReportRow GetLatestSessionReport()
         {
             if (_latestCachedReport != null && _latestCachedReport.ScoreAudio.HasValue)
@@ -281,9 +311,13 @@ namespace InterviewDb
                 var list = _connection.Query<SessionReportRow>("SELECT * FROM View_Session_Report ORDER BY session_id DESC LIMIT 1;");
                 if (list != null && list.Count > 0) report = list[0];
             });
+
             return report ?? _latestCachedReport;
         }
 
+        /// <summary>
+        /// ë§ˆì´í˜ì´ì§€ ê¸°ë¡ì‹¤: ë©´ì ‘ ì¢…ë£Œ ì‹œê°(end_time DESC) ê¸°ì¤€ ìµœì‹ ìˆœ ì •ë ¬ ë°˜í™˜
+        /// </summary>
         public List<SessionReportRow> GetAllSessionReports()
         {
             List<SessionReportRow> reports = new List<SessionReportRow>();
@@ -294,6 +328,9 @@ namespace InterviewDb
             return reports;
         }
 
+        /// <summary>
+        /// ë§ˆì´í˜ì´ì§€ ê¸°ë¡ì‹¤: íŠ¹ì • ë©´ì ‘ ì„¸ì…˜ ì‚­ì œ (CASCADE ì—°ì‡„ ì‚­ì œ ì‘ë™)
+        /// </summary>
         public bool DeleteSession(int sessionId)
         {
             bool success = false;
@@ -301,19 +338,40 @@ namespace InterviewDb
             {
                 int affected = _connection.Execute("DELETE FROM Interview_Session WHERE session_id = ?;", sessionId);
                 success = affected > 0;
+                Debug.Log($"[InterviewDbManager] ì„¸ì…˜ {sessionId} ì‚­ì œ ì™„ë£Œ");
             });
             return success;
         }
 
+        // ============================================================
+        // ìŠ¤ë ˆë“œ ì•ˆì „ì„± ë³´ì¥ ë‚´ë¶€ ì‹¤í–‰ê¸°
+        // ============================================================
+
         private void ExecuteSafe(Action action)
         {
+            if (action == null) return;
+
+            // ë©”ì¸ ìŠ¤ë ˆë“œ í˜¸ì¶œ ì‹œ ì§€ì—° ì—†ì´ ì¦‰ê° ë™ê¸° ì‹¤í–‰ (ë°˜í™˜ê°’ ë° ID ëˆ„ë½ ë°©ì–´)
+            if (System.Threading.Thread.CurrentThread.ManagedThreadId == _mainThreadId)
+            {
+                lock (_connection)
+                {
+                    action();
+                }
+                return;
+            }
+
+            // ë°±ê·¸ë¼ìš´ë“œ ìŠ¤ë ˆë“œ í˜¸ì¶œ ì‹œ MainThreadDbDispatcher í ê²½ìœ 
             if (MainThreadDbDispatcher.Instance != null)
             {
                 MainThreadDbDispatcher.Instance.Enqueue(_ => action());
             }
             else
             {
-                lock (_connection) { action?.Invoke(); }
+                lock (_connection)
+                {
+                    action();
+                }
             }
         }
 
