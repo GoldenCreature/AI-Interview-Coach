@@ -741,15 +741,44 @@ namespace HJS
         // -----------------------------------------------
         private string ExtractValue(string section, string key)
         {
+            // IndexOf(): 문자열 안에서 특정 단어의 시작 위치(인덱스)를 찾는 함수
+            // 예: "점수: 3/5" 에서 "점수:" 의 위치 = 0
+            // 찾지 못하면 -1 반환
             int keyIndex = section.IndexOf(key);
+
+            // keyIndex가 -1이면 해당 키워드가 없다는 뜻
+            // → 빈 문자열 반환하고 종료
             if (keyIndex == -1) return "";
 
+            // 키워드 바로 다음 위치 계산
+            // 예: "점수:" 길이가 3이고 keyIndex가 0이면
+            // valueStart = 0 + 3 = 3 → "점수:" 다음 위치
             int valueStart = keyIndex + key.Length;
-            int valueEnd = section.IndexOf("\n", valueStart);
 
-            if (valueEnd == -1)
-                return section.Substring(valueStart).Trim();
+            // 다음 키워드가 나올 때까지 전부 추출하기 위해
+            // 일단 섹션의 끝을 종료 위치로 설정
+            int valueEnd = section.Length;
 
+            // 다음에 나올 수 있는 키워드 목록
+            // 이 중 하나가 나오면 거기서 추출을 멈춤
+            string[] nextKeys = { "점수:", "평가결과:", "개선사항:" };
+
+            foreach (var nextKey in nextKeys)
+            {
+                // valueStart 이후에서 다음 키워드 위치 탐색
+                // 예: "평가결과:" 다음에 "개선사항:"이 나오는 위치 탐색
+                int nextIndex = section.IndexOf(nextKey, valueStart);
+
+                // nextIndex != -1 → 해당 키워드가 존재함
+                // nextIndex < valueEnd → 현재 찾은 종료 위치보다 앞에 있음
+                // 둘 다 만족하면 종료 위치를 더 앞으로 당김
+                // → 가장 가까운 다음 키워드 직전까지만 추출하게 됨
+                if (nextIndex != -1 && nextIndex < valueEnd)
+                    valueEnd = nextIndex;
+            }
+
+            // valueStart부터 valueEnd까지 문자열 추출
+            // Trim(): 앞뒤 공백 및 줄바꿈 제거
             return section.Substring(valueStart, valueEnd - valueStart).Trim();
         }
 
