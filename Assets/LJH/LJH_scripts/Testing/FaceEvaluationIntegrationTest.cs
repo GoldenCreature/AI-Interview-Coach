@@ -57,7 +57,7 @@ namespace InterviewDb.Testing
             {
                 JobCategory = job,
                 SessionStatus = "Completed",
-                StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                //StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 EndTime = DateTime.Now.AddMinutes(10).ToString("yyyy-MM-dd HH:mm:ss")
             };
         }
@@ -133,7 +133,7 @@ namespace InterviewDb.Testing
                 {
                     JobCategory = "영업",
                     SessionStatus = "Completed",
-                    StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                    //StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
                 };
 
                 MainThreadDbDispatcher.Instance.Enqueue(conn =>

@@ -109,7 +109,7 @@ namespace InterviewDb.Testing
             {
                 JobCategory = "IT개발자",
                 SessionStatus = "In-Progress",
-                StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                //StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
             };
             conn.Insert(session);
             Assert(session.SessionId > 0, "Interview_Session: INSERT 후 AUTOINCREMENT session_id 발급");
@@ -189,7 +189,7 @@ namespace InterviewDb.Testing
             {
                 JobCategory = "디자인",
                 SessionStatus = "Aborted",
-                StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                //StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
             };
             conn.Insert(orphan);
 
@@ -207,7 +207,7 @@ namespace InterviewDb.Testing
             {
                 JobCategory = "영업",
                 SessionStatus = "Completed",
-                StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                //StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 EndTime = DateTime.Now.AddMinutes(10).ToString("yyyy-MM-dd HH:mm:ss")
             };
             conn.Insert(temp);
