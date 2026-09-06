@@ -1,97 +1,66 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using InterviewDb.Core;
-using InterviewDb.Models;
+using InterviewDb;
 
 namespace HJS
 {
-    public class InterviewResultSaver : MonoBehaviour
+    public class InterviewResultSaver : SingletonBase<InterviewResultSaver>
     {
-        // 면접 시작 시간 기록
-        private string _startTime;
 
-        // Interview_Session 저장 후 받아오는 session_id
-        // Session_Result 저장 시 FK로 사용
-        private int _currentSessionId = -1;
+        protected override void Awake()
+        {
+            base.Awake(); // SingletonBase의 DontDestroyOnLoad 처리
+            Debug.Log("[InterviewResultSaver] 초기화 완료");
+        }
 
         private void OnEnable()
         {
-            // 면접 시작 이벤트 구독 → 시작 시간 기록
+            // 면접 시작 이벤트 구독 → 세션 생성
             InterviewManager.OnInterviewStarted += HandleInterviewStarted;
 
-            // 면접 종료 이벤트 구독 → Interview_Session 저장
-            InterviewManager.OnInterviewEnded += HandleInterviewEnded;
-
-            // 평가 완료 이벤트 구독 → Session_Result 저장
+            // 평가 완료 이벤트 구독 → DB 저장
             InterviewManager.OnEvaluationReceived += HandleEvaluationReceived;
         }
 
         private void OnDisable()
         {
             InterviewManager.OnInterviewStarted -= HandleInterviewStarted;
-            InterviewManager.OnInterviewEnded -= HandleInterviewEnded;
             InterviewManager.OnEvaluationReceived -= HandleEvaluationReceived;
         }
 
         // -----------------------------------------------
-        // 면접 시작 시 시작 시간 기록
+        // 면접 시작 시 호출
+        // DB에 세션 생성 → session_id 확보
         // -----------------------------------------------
         private void HandleInterviewStarted(JobCategory job, InterviewerType type)
         {
-            _startTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            _currentSessionId = -1;
-            Debug.Log("[InterviewResultSaver] 면접 시작 시간 기록 완료");
-        }
-
-        // -----------------------------------------------
-        // 면접 종료 시 Interview_Session 저장
-        // conversation_log, start_time, end_time, job_category 포함
-        // -----------------------------------------------
-        private void HandleInterviewEnded(InterviewResultData resultData)
-        {
-            if (MainThreadDbDispatcher.Instance == null)
+            if (InterviewDbManager.Instance == null)
             {
-                Debug.LogError("[InterviewResultSaver] MainThreadDbDispatcher가 없습니다!");
+                Debug.LogError("[InterviewResultSaver] InterviewDbManager가 없습니다!");
                 return;
             }
 
-            string endTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            string startTime = _startTime;
-            string job = resultData.Job.ToString();
-            string conversationLog = BuildConversationLog();
 
-            MainThreadDbDispatcher.Instance.Enqueue(conn =>
-            {
-                var session = new InterviewSession
-                {
-                    JobCategory = job,
-                    SessionStatus = "Completed",
-                    //StartTime = startTime,
-                    EndTime = endTime,
-                    ConversationLog = conversationLog
-                };
+            // DB에 세션 생성 → session_id 자동 확보
+            // job_category에 직종 + 면접관 유형 함께 저장
+            int sessionId = InterviewDbManager.Instance.StartSession(
+                job.ToString(),
+                type.ToString()
+            );
 
-                conn.Insert(session);
-                _currentSessionId = session.SessionId;
-
-                Debug.Log($"[InterviewResultSaver] Interview_Session 저장 완료" +
-                          $" (session_id: {_currentSessionId})");
-            });
+            Debug.Log($"[InterviewResultSaver] 세션 생성 완료 (session_id: {sessionId})");
         }
 
         // -----------------------------------------------
-        // Gemini 평가 완료 시 Session_Result 저장
-        // 음성/내용 점수 저장
-        // TODO: [신모세] 태도 점수 MediaPipe 연동 후 score_attitude 추가
-        // TODO: [이재혁] voice_result, voice_improvement,
-        //                content_result, content_improvement 컬럼 추가 후 저장
+        // Gemini 평가 완료 시 호출
+        // 파싱된 평가 결과 + 대화 기록 → DB 저장
         // -----------------------------------------------
         private void HandleEvaluationReceived(string evaluationText)
         {
-            if (MainThreadDbDispatcher.Instance == null)
+            if (InterviewDbManager.Instance == null)
             {
-                Debug.LogError("[InterviewResultSaver] MainThreadDbDispatcher가 없습니다!");
+                Debug.LogError("[InterviewResultSaver] InterviewDbManager가 없습니다!");
                 return;
             }
 
@@ -103,71 +72,49 @@ namespace HJS
                 return;
             }
 
-            int sessionId = _currentSessionId;
 
-            MainThreadDbDispatcher.Instance.Enqueue(conn =>
+            // 대화 기록 JSON 변환
+            string conversationLogJson = BuildConversationLog();
+
+            // InterviewDbManager 통로로 DB 저장
+            bool success = InterviewDbManager.Instance.SaveInterviewResult(
+                sessionId: InterviewDbManager.Instance.CurrentSessionId,
+                scoreAudio: resultData.VoiceScore,
+                evalAudioText: resultData.VoiceResult,
+                adviceAudioText: resultData.VoiceImprovement,
+                scoreContent: resultData.ContentScore,
+                evalContentText: resultData.ContentResult,
+                adviceContentText: resultData.ContentImprovement,
+                conversationLogJson: conversationLogJson
+            );
+
+            if (success)
             {
-                // session_id가 아직 없으면 저장 불가
-                // (Gemini 응답 전에 Interview_Session이 저장 완료되어야 함)
-                if (sessionId == -1)
-                {
-                    Debug.LogWarning("[InterviewResultSaver] session_id 미확보. " +
-                                     "Session_Result 저장 보류.");
-                    return;
-                }
-
-                // SessionResult → SessionResultHardened 교체
-                // 새 컬럼 구조에 맞게 각 영역별로 분리 저장
-                var result = new SessionResultHardened
-                {
-                    SessionId = sessionId,
-
-                    // 음성 영역
-                    ScoreAudio = resultData.VoiceScore,
-                    EvalAudioText = resultData.VoiceResult,
-                    AdviceAudioText = resultData.VoiceImprovement,
-
-                    // 내용 영역
-                    ScoreContent = resultData.ContentScore,
-                    EvalContentText = resultData.ContentResult,
-                    AdviceContentText = resultData.ContentImprovement,
-
-                    // 태도 점수 → TODO: [신모세] MediaPipe 연동 후 추가
-                    ScoreAttitude = null,
-
-                    // total_score → TODO: [신모세] SetTotalScore() 호출로 채워짐
-                    TotalScore = null,
-
-                    // 공용 총평/개선가이드 → 현재 미사용
-                    SummaryText = null,
-                    AdviceText = null,
-
-                    CreatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                    Version = 1
-                };
-
-                conn.Insert(result);
-                Debug.Log($"[InterviewResultSaver] Session_Result 저장 완료\n" +
-                  $"session_id: {sessionId}\n" +
-                  $"음성 점수: {resultData.VoiceScore}/5\n" +
-                  $"음성 평가결과: {resultData.VoiceResult}\n" +
-                  $"음성 개선사항: {resultData.VoiceImprovement}\n" +
-                  $"내용 점수: {resultData.ContentScore}/5\n" +
-                  $"내용 평가결과: {resultData.ContentResult}\n" +
-                  $"내용 개선사항: {resultData.ContentImprovement}");
-            });
+                Debug.Log($"[InterviewResultSaver] DB 저장 완료\n" +
+                          $"session_id: {InterviewDbManager.Instance.CurrentSessionId}\n" +
+                          $"음성 점수: {resultData.VoiceScore}/5\n" +
+                          $"음성 평가결과: {resultData.VoiceResult}\n" +
+                          $"음성 개선사항: {resultData.VoiceImprovement}\n" +
+                          $"내용 점수: {resultData.ContentScore}/5\n" +
+                          $"내용 평가결과: {resultData.ContentResult}\n" +
+                          $"내용 개선사항: {resultData.ContentImprovement}");
+            }
+            else
+            {
+                Debug.LogWarning("[InterviewResultSaver] DB 저장 실패!");
+            }
         }
 
         // -----------------------------------------------
-        // chatHistory를 DB 저장용 JSON 문자열로 변환
-        // DB 트리거에서 speaker 값을 "AI"/"User"로만 허용
+        // chatHistory → JSON 문자열 변환
+        // DB 트리거: json_valid() + speaker "AI"/"User" 검증
         // -----------------------------------------------
         private string BuildConversationLog()
         {
-            if (UnityAndGeminiV3.Instance == null) return "[]";
+            if (UnityAndGeminiV3.Instance == null) return null;
 
             var history = UnityAndGeminiV3.Instance.chatHistory;
-            if (history == null || history.Length == 0) return "[]";
+            if (history == null || history.Length == 0) return null;
 
             var jsonParts = new List<string>();
 
@@ -209,11 +156,14 @@ namespace HJS
                     $"\"text\":\"{escapedText}\"}}");
             }
 
+            // 대화 내용이 없으면 null 반환 (빈 JSON 배열 트리거 오류 방지)
+            if (jsonParts.Count == 0) return null;
+
             return $"[{string.Join(",", jsonParts)}]";
         }
 
         // -----------------------------------------------
-        // JSON 문자열 이스케이프 처리
+        // JSON 특수문자 이스케이프 처리
         // -----------------------------------------------
         private string EscapeJson(string text)
         {
