@@ -67,7 +67,7 @@ namespace HJS
                 {
                     JobCategory = job,
                     SessionStatus = "Completed",
-                    StartTime = startTime,
+                    //StartTime = startTime,
                     EndTime = endTime,
                     ConversationLog = conversationLog
                 };
