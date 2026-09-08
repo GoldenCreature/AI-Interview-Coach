@@ -940,6 +940,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3601106683118132620, guid: 522d21ced7e9e8f439352144e1ed8b05, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4588045644597425873, guid: 522d21ced7e9e8f439352144e1ed8b05, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -1272,7 +1276,7 @@ PrefabInstance:
     - target: {fileID: 3532890060448399973, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
       propertyPath: voice
       value: 
-      objectReference: {fileID: 11400000, guid: 3b0e76d997eb0864ea2323f5964304a8, type: 2}
+      objectReference: {fileID: 11400000, guid: 4b99ff89227124644969677d4e711517, type: 2}
     - target: {fileID: 3532890060448399973, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
       propertyPath: audioSource
       value: 
