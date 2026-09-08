@@ -108,4 +108,4 @@ InitTestScene*.unity*
 # MediaPipe tgz 파일 (대용량이라 깃허브 제외)
 # 각자 PC에서 직접 다운로드 필요
 # 다운로드 링크: https://github.com/homuler/MediaPipeUnityPlugin/releases/tag/v0.16.3
-# 프로젝트 파일 경로: LocalPackages/
+LocalPackages/
