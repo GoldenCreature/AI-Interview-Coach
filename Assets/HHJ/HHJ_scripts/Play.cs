@@ -20,12 +20,14 @@ namespace PlayUI.Scripts
 
         private void OnEnable()
         {
-            InterviewManager.OnInterviewEnded += HandleInterviewEnded;
+            // OnInterviewEnded → OnInterviewEndRequested 로 교체
+            // 씬 전환 전에 타이머 정지 처리하기 위함
+            InterviewManager.OnInterviewEndRequested += HandleInterviewEnded;
         }
 
         private void OnDisable()
         {
-            InterviewManager.OnInterviewEnded -= HandleInterviewEnded;
+            InterviewManager.OnInterviewEndRequested -= HandleInterviewEnded;
         }
 
         private void HandleInterviewEnded(InterviewResultData resultData)

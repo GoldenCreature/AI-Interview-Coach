@@ -76,15 +76,15 @@ namespace HJS
             // STT 결과 이벤트 구독 → Gemini 전송 자동 실행
             InterviewManager.OnTranscriptReceived += HandleTranscriptReceived;
 
-            // 면접 종료 이벤트 구독 → 종합 평가 자동 시작
-            InterviewManager.OnInterviewEnded += HandleInterviewEnded;
+            // 면접 종료 이벤트 구독 → 씬 전환 전 종합 평가 요청 시작
+            InterviewManager.OnInterviewEndRequested += HandleInterviewEnded;
         }
 
         private void OnDisable()
         {
             InterviewManager.OnInterviewStarted -= HandleInterviewStarted;
             InterviewManager.OnTranscriptReceived -= HandleTranscriptReceived;
-            InterviewManager.OnInterviewEnded -= HandleInterviewEnded;
+            InterviewManager.OnInterviewEndRequested -= HandleInterviewEnded;
         }
 
         // -----------------------------------------------
@@ -673,9 +673,9 @@ namespace HJS
                         // 음성/내용 영역 점수, 평가결과, 개선사항 분리
                         ParseEvaluationResult(evaluationResult, resultData);
 
-                        // TODO: [이재혁] DB 연동 완료 후
-                        // 현재 흐름: 파싱된 데이터 임시 보관 → Result 씬에서 꺼내 표시
-                        // 최종 흐름: DB 저장 → Result 씬 이동 → DB에서 읽어서 표시
+                        // DB 저장은 InterviewResultSaver에서 처리
+                        // InterviewManager 임시 보관은 캐시 역할로 유지
+                        // → Result 씬 빠른 표시를 위해 사용
                         InterviewManager.Instance.SetEvaluationResult(resultData);
 
                         // 평가 결과 전체 텍스트를 Result.cs로 전달
@@ -732,6 +732,9 @@ namespace HJS
             catch (System.Exception e)
             {
                 Debug.LogError($"[GeminiManager] 평가 결과 파싱 실패: {e.Message}");
+
+                // 평가 실패해도 사용자가 면접 화면에 갇히지 않도록 씬 전환은 진행
+                InterviewManager.Instance.NotifyInterviewEnded();
             }
         }
 

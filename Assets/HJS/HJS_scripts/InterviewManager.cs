@@ -42,13 +42,21 @@ namespace HJS
         // 구독자: GeminiManager (프롬프트 주입 + 첫 질문)
         public static event Action<JobCategory, InterviewerType> OnInterviewStarted;
 
-        // 면접이 종료될 때 발생
-        // 구독자: GeminiManager (종합 평가), DBManager (저장), UIManager (결과 화면)
+        // DB 저장 완료 후 NotifyInterviewEnded()로 발생
+        // 구독자: UIManager (결과 화면), Play.cs (타이머 정지)
         public static event Action<InterviewResultData> OnInterviewEnded;
 
         // Gemini 종합 평가 결과가 준비됐을 때 발생
         // 구독자: Result.cs (결과 화면 표시)
         public static event Action<string> OnEvaluationReceived;
+
+        // EndInterview()에서 생성한 resultData 보관
+        // NotifyInterviewEnded() 호출 시 전달
+        private InterviewResultData _currentResultData;
+
+        // 면접 종료 요청 이벤트
+        // 구독자: GeminiManager (평가 요청 시작)
+        public static event Action<InterviewResultData> OnInterviewEndRequested;
 
         // -----------------------------------------------
         // 면접 진행 중 데이터 누적
@@ -180,16 +188,26 @@ namespace HJS
 
             IsInterviewActive = false;
 
-            // 결과 데이터 취합
-            InterviewResultData resultData = new InterviewResultData
+            _currentResultData = new InterviewResultData
             {
                 Job = SelectedJob,
                 InterviewerType = SelectedInterviewerType,
                 AttitudeScore = _attitudeScore
             };
 
-            Debug.Log("[InterviewManager] 면접 종료 → 결과 데이터 전송");
-            OnInterviewEnded?.Invoke(resultData);
+            // OnInterviewEnded 이벤트는 즉시 발생하지 않음
+            // Gemini 평가 + DB 저장 완료 후
+            // NotifyInterviewEnded() 호출로 발생
+            Debug.Log("[InterviewManager] 면접 종료 신호 → Gemini 평가 요청 대기");
+            OnInterviewEndRequested?.Invoke(_currentResultData);
+        }
+
+        // Gemini 평가 + DB 저장 완료 후 호출
+        // UIManager.HandleInterviewEnded() 자동 실행
+        public void NotifyInterviewEnded()
+        {
+            Debug.Log("[InterviewManager] DB 저장 완료 → 면접 종료 이벤트 발생");
+            OnInterviewEnded?.Invoke(_currentResultData);
         }
 
         // -----------------------------------------------
@@ -251,6 +269,5 @@ namespace HJS
 
         // 말버릇 카운트는 FillerWordDetector에서 직접 꺼냄
         // 대화 기록은 GeminiManager의 chatHistory에서 직접 꺼냄
-        // TODO: [이재혁] DB 저장 시 위 데이터 전달 필요
     }
 }
