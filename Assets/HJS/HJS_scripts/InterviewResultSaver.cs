@@ -98,10 +98,17 @@ namespace HJS
                           $"내용 점수: {resultData.ContentScore}/5\n" +
                           $"내용 평가결과: {resultData.ContentResult}\n" +
                           $"내용 개선사항: {resultData.ContentImprovement}");
+
+                // DB 저장 완료 → 씬 전환 트리거
+                // NotifyInterviewEnded() 호출
+                // → OnInterviewEnded 이벤트 발생
+                // → UIManager.HandleInterviewEnded()
+                // → LoadResultScene()
+                InterviewManager.Instance.NotifyInterviewEnded();
             }
             else
             {
-                Debug.LogWarning("[InterviewResultSaver] DB 저장 실패!");
+                Debug.LogWarning("[InterviewResultSaver] DB 저장 실패! 씬 전환 보류");
             }
         }
 
