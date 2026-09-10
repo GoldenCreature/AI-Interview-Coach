@@ -3,7 +3,8 @@ using InterviewDb;
 
 public class DbDirectTester : MonoBehaviour
 {
-    void Start()
+    /*
+    void St1art()
     {
         // 1. 세션 생성 테스트
         int sessionId = InterviewDbManager.Instance.StartSession("IT 개발자", "압박형");
@@ -36,5 +37,39 @@ public class DbDirectTester : MonoBehaviour
         InterviewDbManager.Instance.SetTotalScore(sessionId, 4.2);
 
         Debug.Log("✅ [테스트 완료] DB에 더미 데이터 적재가 완료되었습니다!");
+    }
+    */
+
+    private void Awake()
+    {
+        // 씬 시작과 동시에 실제 DB에 테스트용 세션 2건 적재
+        SeedSampleData();
+    }
+
+    private void SeedSampleData()
+    {
+        // 1번 세션 (최근 데이터)
+        int id1 = InterviewDbManager.Instance.StartSession("마케팅 기획자", "일반형");
+        InterviewDbManager.Instance.SaveInterviewResult(
+            sessionId: id1,
+            scoreAudio: 4.5, evalAudioText: "발음이 또렷합니다.", adviceAudioText: "속도를 조금 늦춰보세요.",
+            scoreContent: 4.2, evalContentText: "직무 분석이 뛰어납니다.", adviceContentText: "정량적 성과를 강조하세요.",
+            conversationLogJson: "[]"
+        );
+        InterviewDbManager.Instance.SaveFaceEvaluation(id1, 4.0, "시선 고정이 안정적입니다.");
+        InterviewDbManager.Instance.SetTotalScore(id1, 4.2);
+
+        // 2번 세션 (이전 데이터)
+        int id2 = InterviewDbManager.Instance.StartSession("IT 백엔드 개발자", "압박형");
+        InterviewDbManager.Instance.SaveInterviewResult(
+            sessionId: id2,
+            scoreAudio: 3.8, evalAudioText: "목소리가 다소 작습니다.", adviceAudioText: "자신감 있게 발성하세요.",
+            scoreContent: 4.6, evalContentText: "기술적 이해도가 깊습니다.", adviceContentText: "아키텍처 근거를 제시하세요.",
+            conversationLogJson: "[]"
+        );
+        InterviewDbManager.Instance.SaveFaceEvaluation(id2, 3.5, "시선이 자주 흔들립니다.");
+        InterviewDbManager.Instance.SetTotalScore(id2, 4.0);
+
+        Debug.Log("✅ [DbDirectTester] DB에 실제 테스트 데이터 2건 적재 완료");
     }
 }
