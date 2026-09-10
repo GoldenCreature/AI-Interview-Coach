@@ -57,7 +57,7 @@ namespace InterviewDb.UI
         }
 
         // ------------------------------------------------------------
-        // 기존 타 스크립트 호출 호환성 유지용 (Alias)[cite: 1]
+        // 기존 타 스크립트 호출 호환성 유지용 (Alias)
         // ------------------------------------------------------------
         public void DisplayReport(SessionReportRow report) => StoreReport(report);
         public void SetScores(double? audioScore, double? contentScore, double? attitudeScore)

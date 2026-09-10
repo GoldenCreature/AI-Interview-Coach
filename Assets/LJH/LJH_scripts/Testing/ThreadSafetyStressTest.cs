@@ -91,7 +91,7 @@ namespace InterviewDb.Testing
                 {
                     JobCategory = $"스레드{idx}",
                     SessionStatus = "Completed",
-                    StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                    //StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
                 });
                 _log.Add($"[스레드 {idx}] 성공 (ManagedThreadId={Thread.CurrentThread.ManagedThreadId})");
             }
@@ -116,7 +116,7 @@ namespace InterviewDb.Testing
                     {
                         JobCategory = $"스레드{idx}",
                         SessionStatus = "Completed",
-                        StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                        //StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
                     });
                 }
                 _log.Add($"[스레드 {idx}] 성공 (ManagedThreadId={Thread.CurrentThread.ManagedThreadId})");
