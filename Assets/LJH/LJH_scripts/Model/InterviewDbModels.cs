@@ -27,6 +27,9 @@ namespace InterviewDb.Models
         [Column("job_category")]
         public string JobCategory { get; set; }
 
+        [Column("interview_type")] // [추가]
+        public string InterviewType { get; set; }
+
         [Column("session_status")]
         public string SessionStatus { get; set; }
 
@@ -94,7 +97,10 @@ namespace InterviewDb.Models
         [Column("job_category")]
         public string JobCategory { get; set; }
 
-        // [추가] 세션 상태 (In-Progress, Completed, Aborted)
+        [Column("interview_type")] // [추가]
+        public string InterviewType { get; set; }
+
+        // 세션 상태 (In-Progress, Completed, Aborted)
         [Column("session_status")]
         public string SessionStatus { get; set; }
 

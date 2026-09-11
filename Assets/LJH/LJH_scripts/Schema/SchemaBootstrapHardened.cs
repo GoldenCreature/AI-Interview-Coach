@@ -42,6 +42,7 @@ namespace InterviewDb.Core
             @"CREATE TABLE IF NOT EXISTS Interview_Session (
                 session_id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 job_category        TEXT    NOT NULL DEFAULT 'IT',
+                interview_type      TEXT    NOT NULL DEFAULT '일상적 대화 면접',
                 session_status      TEXT    NOT NULL DEFAULT 'Completed'
                                     CHECK (session_status IN ('In-Progress', 'Completed', 'Aborted')),
                 end_time            TEXT    NULL,
@@ -83,6 +84,7 @@ namespace InterviewDb.Core
             SELECT
                 s.session_id,
                 s.job_category,
+                s.interview_type, -- [컬럼 매핑]
                 s.session_status,
                 s.end_time,
                 s.duration_seconds,
