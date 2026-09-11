@@ -46,10 +46,14 @@ namespace HJS
         // Inspector 입력 방식 제거 → 설정 화면 UI에서 입력
         private string ApiKey => SettingsManager.Instance.GeminiApiKey;
 
-        // 사용할 Gemini 모델의 API 주소
-        // 모델을 바꾸고 싶으면 URL 안의 모델명 부분만 수정하면 됨
-        private string apiEndpoint =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+        // 사용할 Gemini 모델명
+        // 모델 변경 시 이 변수만 수정하면 됨
+        private string geminiModel = "gemini-3.5-flash";
+
+        // Gemini API 엔드포인트
+        // 모델명은 geminiModel 변수로 관리
+        private string apiEndpoint =>
+            $"https://generativelanguage.googleapis.com/v1beta/models/{geminiModel}:generateContent";
 
         // 지금까지 나눈 대화 전체를 저장하는 배열
         // Gemini는 대화 맥락을 기억 못하기 때문에
@@ -122,15 +126,15 @@ namespace HJS
         // STT 결과 수신 시 Gemini로 전송
         private void HandleTranscriptReceived(string transcript)
         {
-            // 답변을 받을 때마다 질문 번호 증가
-            _currentQuestionNumber++;
+            // 질문 번호 증가는 통신 성공 이후
+            // sendChatRequestToGemini() 성공 시에만 증가
 
             // Gemini에게 현재 몇 번째 질문에 대한 답변인지 명시
             // 이를 통해 Gemini가 진행 순서를 인식하고 다음 단계로 넘어갈 수 있음
             string taggedTranscript =
-                $"[현재 {_currentQuestionNumber}번 질문에 대한 답변]\n{transcript}";
+                $"[현재 {_currentQuestionNumber + 1}번 질문에 대한 답변]\n{transcript}";
 
-            Debug.Log($"[GeminiManager] {_currentQuestionNumber}번 질문 답변 전송");
+            Debug.Log($"[GeminiManager] {_currentQuestionNumber + 1}번 질문 답변 전송");
             StartCoroutine(SendChatRequestToGemini(taggedTranscript));
         }
 
@@ -461,11 +465,38 @@ namespace HJS
             }
         }
 
+        
+        /// <summary>
+        /// TTS 전달 전 마크다운 특수기호 제거
+        /// Gemini 응답의 ** ** , * , # 등 제거
+        /// </summary>
+        /// <param name="text"></param>
+        /// <returns></returns>
+        private string RemoveMarkdown(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            // ** 굵게 ** 제거
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"\*\*(.+?)\*\*", "$1");
+
+            // * 기울임 * 제거
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"\*(.+?)\*", "$1");
+
+            // # 헤더 제거
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"^#+\s*", "",
+                System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            // ` 코드 ` 제거
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"`(.+?)`", "$1");
+
+            return text.Trim();
+        }
+
         // -----------------------------------------------
         // Gemini API 통신
         // 대화 기록을 포함해서 Gemini에 요청하는 핵심 함수
         // -----------------------------------------------
-        private IEnumerator SendChatRequestToGemini(string newMessage)
+        private IEnumerator SendChatRequestToGemini(string newMessage, int retryCount = 0)
         {
             string url = $"{apiEndpoint}?key={ApiKey}";
 
@@ -477,9 +508,14 @@ namespace HJS
             };
 
             // 기존 대화 기록에 새 메시지 추가
+            // 첫 요청(retryCount == 0)일 때만 추가 
+            // 재시도 시에는 이미 추가되어있으니 생략
             List<Content> contentsList = new List<Content>(chatHistory);
-            contentsList.Add(userContent);
-            chatHistory = contentsList.ToArray();
+            if (retryCount == 0)
+            {
+                contentsList.Add(userContent);
+                chatHistory = contentsList.ToArray();
+            }
 
             // 대화 기록 전체를 요청 데이터로 만들어서 JSON으로 변환
             ChatRequest chatRequest = new ChatRequest { contents = chatHistory };
@@ -496,80 +532,107 @@ namespace HJS
 
                 if (www.result != UnityWebRequest.Result.Success)
                 {
+                    Debug.LogError($"[GeminiManager] HTTP 상태 코드: {www.responseCode}");
                     Debug.LogError($"[GeminiManager] 요청 실패: {www.error}");
+                    Debug.LogError($"[GeminiManager] Gemini 응답: {www.downloadHandler.text}");
+
+                    // 503 서버 과부화 → 최대 3회 재시도
+                    if (www.responseCode == 503 && retryCount < 3)
+                    {
+                        int nextRetry = retryCount + 1;
+                        Debug.LogWarning(
+                            $"[GeminiManager] 서버 과부화 → " +
+                            $"5초 후 재시도 ({nextRetry}/3)"
+                        );
+                        yield return new WaitForSeconds(5f);
+                        StartCoroutine(SendChatRequestToGemini(newMessage, nextRetry));
+                    }
+                    else if (www.responseCode == 503)
+                    {
+                        Debug.LogError("[GeminiManager] 재시도 횟수 초과 → 면접 진행 불가");
+                    }
+                    yield break;
+                }
+
+                // 통신 성공 시에만 질문 번호 증가
+                // 면접 시작 요청("면접을 시작해주세요.")은 번호 증가 제외
+                if (newMessage.Contains("번 질문에 대한 답변"))
+                    _currentQuestionNumber++;
+
+                Response response = JsonUtility.FromJson<Response>(www.downloadHandler.text);
+
+                // 응답 자체가 null인 경우
+                if (response == null)
+                {
+                    Debug.LogError("[GeminiManager] 응답 파싱 실패 (null)");
+                    yield break;
+                }
+
+                // candidates 배열이 없는 경우
+                if (response.candidates == null || response.candidates.Length == 0)
+                {
+                    Debug.LogWarning("[GeminiManager] 응답 candidates 없음");
+                    yield break;
+                }
+
+                // parts 배열이 없는 경우
+                if (response.candidates[0].content == null ||
+                    response.candidates[0].content.parts == null ||
+                    response.candidates[0].content.parts.Length == 0)
+                {
+                    Debug.LogWarning("[GeminiManager] 응답 parts 없음");
+                    yield break;
+                }
+
+                string reply = response.candidates[0].content.parts[0].text;
+
+                // 응답 텍스트가 비어있는 경우
+                if (string.IsNullOrEmpty(reply))
+                {
+                    Debug.LogWarning("[GeminiManager] 응답 텍스트 비어있음");
+                    yield break;
+                }
+
+                // AI 응답을 대화 기록에 추가
+                Content botContent = new Content
+                {
+                    role = "model",
+                    parts = new Part[] { new Part { text = reply } }
+                };
+
+                contentsList.Add(botContent);
+                chatHistory = contentsList.ToArray();
+
+                Debug.Log($"[GeminiManager] 응답: {reply}");
+
+                // -----------------------------------------------
+                // [면접종료] 태그 감지
+                // Gemini가 10번 질문까지 완료하면 [면접종료] 태그를 출력함
+                // 태그를 제거한 뒤 마지막 멘트만 TTS로 출력하고
+                // 일정 시간 후 면접 종료 처리
+                // -----------------------------------------------
+                if (reply.Contains("[면접종료]"))
+                {
+                    // 태그 제거 후 TTS 출력
+                    string cleanReply = reply.Replace("[면접종료]", "").Trim();
+                    cleanReply = RemoveMarkdown(cleanReply);
+                    Debug.Log("[GeminiManager] 면접 종료 신호 감지");
+                    InterviewManager.NotifyGeminiResponseReceived(cleanReply);
+
+                    // TTS 출력이 끝날 시간을 고려해서 3초 후 종료
+                    StartCoroutine(EndInterviewAfterDelay(3f));
                 }
                 else
                 {
-                    Response response = JsonUtility.FromJson<Response>(www.downloadHandler.text);
-
-                    // 응답 자체가 null인 경우
-                    if (response == null)
-                    {
-                        Debug.LogError("[GeminiManager] 응답 파싱 실패 (null)");
-                        yield break;
-                    }
-
-                    // candidates 배열이 없는 경우
-                    if (response.candidates == null || response.candidates.Length == 0)
-                    {
-                        Debug.LogWarning("[GeminiManager] 응답 candidates 없음");
-                        yield break;
-                    }
-
-                    // parts 배열이 없는 경우
-                    if (response.candidates[0].content == null ||
-                        response.candidates[0].content.parts == null ||
-                        response.candidates[0].content.parts.Length == 0)
-                    {
-                        Debug.LogWarning("[GeminiManager] 응답 parts 없음");
-                        yield break;
-                    }
-
-                    string reply = response.candidates[0].content.parts[0].text;
-
-                    // 응답 텍스트가 비어있는 경우
-                    if (string.IsNullOrEmpty(reply))
-                    {
-                        Debug.LogWarning("[GeminiManager] 응답 텍스트 비어있음");
-                        yield break;
-                    }
-
-                    // AI 응답을 대화 기록에 추가
-                    Content botContent = new Content
-                    {
-                        role = "model",
-                        parts = new Part[] { new Part { text = reply } }
-                    };
-
-                    contentsList.Add(botContent);
-                    chatHistory = contentsList.ToArray();
-
-                    Debug.Log($"[GeminiManager] 응답: {reply}");
-
-                    // -----------------------------------------------
-                    // [면접종료] 태그 감지
-                    // Gemini가 10번 질문까지 완료하면 [면접종료] 태그를 출력함
-                    // 태그를 제거한 뒤 마지막 멘트만 TTS로 출력하고
-                    // 일정 시간 후 면접 종료 처리
-                    // -----------------------------------------------
-                    if (reply.Contains("[면접종료]"))
-                    {
-                        // 태그 제거 후 TTS 출력
-                        string cleanReply = reply.Replace("[면접종료]", "").Trim();
-                        Debug.Log("[GeminiManager] 면접 종료 신호 감지");
-                        InterviewManager.NotifyGeminiResponseReceived(cleanReply);
-
-                        // TTS 출력이 끝날 시간을 고려해서 3초 후 종료
-                        StartCoroutine(EndInterviewAfterDelay(3f));
-                    }
-                    else
-                    {
-                        // 일반 응답은 그대로 TTS로 전달
-                        InterviewManager.NotifyGeminiResponseReceived(reply);
-                    }
+                    // TTS 전달 전 마크다운 제거
+                    string cleanReply = RemoveMarkdown(reply);
+                    // 일반 응답은 그대로 TTS로 전달
+                    InterviewManager.NotifyGeminiResponseReceived(cleanReply);
                 }
+
             }
         }
+        
 
         // -----------------------------------------------
         // 면접 종료 지연 처리
