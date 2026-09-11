@@ -1273,6 +1273,34 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 581619193}
     m_Modifications:
+    - target: {fileID: 313305616996152584, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
+      propertyPath: fillerWords.Array.size
+      value: 21
+      objectReference: {fileID: 0}
+    - target: {fileID: 313305616996152584, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
+      propertyPath: fillerWords.Array.data[15]
+      value: "\uADF8"
+      objectReference: {fileID: 0}
+    - target: {fileID: 313305616996152584, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
+      propertyPath: fillerWords.Array.data[16]
+      value: "\uC800\uAE30"
+      objectReference: {fileID: 0}
+    - target: {fileID: 313305616996152584, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
+      propertyPath: fillerWords.Array.data[17]
+      value: "\uBB54\uAC00"
+      objectReference: {fileID: 0}
+    - target: {fileID: 313305616996152584, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
+      propertyPath: fillerWords.Array.data[18]
+      value: "\uB9C9"
+      objectReference: {fileID: 0}
+    - target: {fileID: 313305616996152584, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
+      propertyPath: fillerWords.Array.data[19]
+      value: "\uB418\uAC8C"
+      objectReference: {fileID: 0}
+    - target: {fileID: 313305616996152584, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
+      propertyPath: fillerWords.Array.data[20]
+      value: "\uADF8\uB798\uC11C"
+      objectReference: {fileID: 0}
     - target: {fileID: 3532890060448399973, guid: 39fb3779bd6ce54479bb980b3bcceed1, type: 3}
       propertyPath: voice
       value: 
