@@ -6,12 +6,6 @@ using System.IO;
 public class FaceScoreDBLogger : MonoBehaviour
 {
     private SQLiteConnection db;
-    private readonly object dbLock = new object();
-    private bool isInitialized = false;
-
-    // 메인 스레드에서 캐싱할 기본 persistentDataPath
-    private static string defaultPersistentPath = string.Empty;
-    private string cachedDbPath = string.Empty;
 
     [Header("저장 경로 설정")]
     [Tooltip("DB 파일을 저장할 폴더의 전체 경로. 비워두면 기본 persistentDataPath를 사용합니다. 예: D:\\FaceScoreData")]
@@ -20,122 +14,60 @@ public class FaceScoreDBLogger : MonoBehaviour
     [Tooltip("DB 파일명")]
     public string dbFileName = "FaceScores.db";
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    private static void CacheMainThreadData()
-    {
-        // 씬이 로드되기 전 메인 스레드에서 persistentDataPath를 static 변수에 안전하게 미리 캐싱
-        defaultPersistentPath = Application.persistentDataPath;
-    }
-
     void Awake()
     {
-        SetupPathAndInitialize();
-    }
+        string folderPath;
 
-    private void SetupPathAndInitialize()
-    {
-        lock (dbLock)
+        if (!string.IsNullOrEmpty(customFolderPath))
         {
-            if (isInitialized) return;
+            folderPath = customFolderPath;
 
-            string folderPath = string.Empty;
-
-            // 1. 커스텀 경로가 지정된 경우
-            if (!string.IsNullOrEmpty(customFolderPath))
+            // 지정한 폴더가 없으면 자동으로 생성
+            if (!Directory.Exists(folderPath))
             {
-                folderPath = customFolderPath;
-
-                if (!Directory.Exists(folderPath))
+                try
                 {
-                    try
-                    {
-                        Directory.CreateDirectory(folderPath);
-                        Debug.Log($"[FaceScoreDBLogger] 폴더가 없어 새로 생성했습니다: {folderPath}");
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogError($"[FaceScoreDBLogger] 폴더 생성 실패: {e.Message}. 기본 경로로 대체합니다.");
-                        folderPath = defaultPersistentPath;
-                    }
+                    Directory.CreateDirectory(folderPath);
+                    Debug.Log($"[FaceScoreDBLogger] 폴더가 없어 새로 생성했습니다: {folderPath}");
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[FaceScoreDBLogger] 폴더 생성 실패: {e.Message}. 기본 경로로 대체합니다.");
+                    folderPath = Application.persistentDataPath;
                 }
             }
-            else
-            {
-                // 2. 커스텀 경로가 없으면 캐싱된 persistentDataPath 사용
-                folderPath = defaultPersistentPath;
-            }
-
-            // 여전히 경로를 구하지 못했으면(메인 스레드 첫 프레임 진입 전 백그라운드 호출 시)
-            if (string.IsNullOrEmpty(folderPath))
-            {
-                return;
-            }
-
-            cachedDbPath = Path.Combine(folderPath, dbFileName);
-
-            try
-            {
-                db = new SQLiteConnection(cachedDbPath);
-                db.CreateTable<FaceScoreEntry>();
-                isInitialized = true;
-                Debug.Log($"[FaceScoreDBLogger] DB 연결 및 테이블 생성 완료: {cachedDbPath}");
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[FaceScoreDBLogger] DB 연결 초기화 실패: {e.Message}");
-            }
         }
+        else
+        {
+            folderPath = Application.persistentDataPath;
+        }
+
+        string dbPath = Path.Combine(folderPath, dbFileName);
+        Debug.Log($"[FaceScoreDBLogger] DB 경로: {dbPath}");
+
+        db = new SQLiteConnection(dbPath);
+        db.CreateTable<FaceScoreEntry>(); // 테이블 없으면 자동 생성
     }
 
     /// <summary>
-    /// MediaPipe 콜백 스레드에서 호출되는 저장 함수
+    /// [수정] 감정별 개별 점수(Smile/Surprise/Angry)와 평가등급(EvaluationGrade)은 저장하지 않고,
+    /// 시간 + 종합 점수 + 코멘트만 저장.
     /// </summary>
     public void SaveScoreToDB(DateTime timestamp, float evaluationScore, string evaluationDetail, string improvementNotes)
     {
-        // 초기화가 안 되어 있다면 초기화 시도
-        if (!isInitialized || db == null)
-        {
-            SetupPathAndInitialize();
-        }
-
-        // 경로 준비가 안 되었거나 DB 커넥션 생성 실패 시 경고 후 스킵
-        if (db == null)
-        {
-            Debug.LogWarning("[FaceScoreDBLogger] DB 커넥션이 아직 준비되지 않아 저장을 스킵합니다.");
-            return;
-        }
-
         var entry = new FaceScoreEntry
         {
             Timestamp = timestamp.ToString("yyyy-MM-dd HH:mm"),
             EvaluationScore = evaluationScore,
-            EvaluationDetail = evaluationDetail ?? "",
-            ImprovementNotes = improvementNotes ?? ""
+            EvaluationDetail = evaluationDetail,
+            ImprovementNotes = improvementNotes
         };
 
-        lock (dbLock)
-        {
-            try
-            {
-                db.Insert(entry);
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[FaceScoreDBLogger] DB Insert 실패: {e.Message}");
-            }
-        }
+        db.Insert(entry); // sqlite-net 내부적으로 thread-safe하게 처리됨
     }
 
     void OnApplicationQuit()
     {
-        lock (dbLock)
-        {
-            if (db != null)
-            {
-                db.Close();
-                db = null;
-                isInitialized = false;
-            }
-        }
+        db?.Close();
     }
 }
