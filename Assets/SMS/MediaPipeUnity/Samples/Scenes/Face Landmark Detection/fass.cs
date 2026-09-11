@@ -17,61 +17,34 @@ public class fass : MonoBehaviour
     [Tooltip("씬에 있는 FaceLandmarkerRunner 오브젝트를 여기에 드래그하세요.")]
     public FaceLandmarkerRunner runner;
 
-    [Header("캘리브레이션 (무표정 기준값)")]
-    [Tooltip("무표정 상태에서 측정한 입 높이/너비 비율. 실측 후 조정하세요.")]
+    [Header("캘리브레이션 (무표정 기준값) - 수동 입력")]
+    [Tooltip("무표정 상태에서 측정한 입 높이/너비 비율. 인스펙터에서 직접 값을 입력/조정하세요.")]
     public float neutralSmileRatio = 0.03f;
 
-    [Tooltip("무표정 상태에서 측정한 눈 뜬 정도/얼굴너비 비율. 실측 후 조정하세요.")]
+    [Tooltip("무표정 상태에서 측정한 눈 뜬 정도/얼굴너비 비율. 인스펙터에서 직접 값을 입력/조정하세요.")]
     public float neutralSurpriseRatio = 0.05f;
 
-    [Tooltip("무표정 상태에서 측정한 눈썹 사이 거리/얼굴너비 비율. 실측 후 조정하세요.")]
+    [Tooltip("무표정 상태에서 측정한 눈썹 사이 거리/얼굴너비 비율. 인스펙터에서 직접 값을 입력/조정하세요.")]
     public float neutralAngryRatio = 0.23f;
 
-    [Header("자동 캘리브레이션")]
-    [Tooltip("캘리브레이션에 사용할 시간(초). 이 시간 동안 무표정을 유지해야 합니다.")]
-    public float calibrationDuration = 3f;
-
-    [Tooltip("캘리브레이션 시작 키. Play 모드에서 이 키를 누르면 자동 측정이 시작됩니다.")]
-    public KeyCode calibrationKey = KeyCode.Space;
-
-    private bool isCalibrating = false;
     private List<Vector3> latestLandmarks = null;
 
-    [Header("얼굴 각도 제한 (Head Pose Gate)")]
+    [Header("얼굴 각도 제한 (Head Pose Gate) - 수동 입력")]
     [Tooltip("체크하면 얼굴이 특정 각도 이상 돌아갔을 때 분석(점수 계산/저장)을 건너뜁니다.")]
     public bool enableAngleGate = true;
 
     [Tooltip("좌우 회전(Yaw) 허용 한계. 양쪽 귀(234/454)의 z값 차이를 얼굴 너비로 나눈 비율입니다. " +
              "값이 작을수록 더 엄격(조금만 돌아가도 멈춤), 클수록 관대합니다. " +
-             "직접 입력하거나 아래 각도 임계값 캘리브레이션으로 자동 측정할 수 있습니다.")]
+             "인스펙터에서 직접 값을 입력/조정하세요.")]
     public float maxYawRatio = 0.80f;
 
     [Tooltip("상하 회전(Pitch) 허용 한계. 이마(10)/턱(152)의 z값 차이를 얼굴 높이로 나눈 비율입니다. " +
              "값이 작을수록 더 엄격, 클수록 관대합니다. " +
-             "직접 입력하거나 아래 각도 임계값 캘리브레이션으로 자동 측정할 수 있습니다.")]
+             "인스펙터에서 직접 값을 입력/조정하세요.")]
     public float maxPitchRatio = 0.80f;
 
     [Tooltip("각도 초과로 분석이 멈춘 상태인지 (UI 표시 등에서 참조 가능)")]
     public bool isFaceTooAngled = false;
-
-    [Header("각도 임계값 자동 캘리브레이션")]
-    [Tooltip("무표정 캘리브레이션 직후 자동으로 이어서 각도 임계값 캘리브레이션까지 진행합니다. " +
-             "즉, calibrationKey(기본 Space) 한 번으로 '무표정 유지 → 한계각도로 고개 돌려 유지' 순서가 자동 진행됩니다.")]
-    public KeyCode angleThresholdCalibrationKey = KeyCode.Tab;
-
-    [Tooltip("각도 임계값 캘리브레이션에 사용할 시간(초). 이 시간 동안 원하는 한계 각도를 유지해주세요.")]
-    public float angleThresholdCalibrationDuration = 3f;
-
-    [Tooltip("무표정 캘리브레이션이 끝난 뒤, 한계 각도로 고개를 돌릴 시간을 주기 위한 대기시간(초).")]
-    public float angleTransitionDelay = 2f;
-
-    [Tooltip("자동 측정된 값에 곱하는 안전 여유율. 1.0이면 측정된 최대값 그대로, " +
-             "0.9면 측정값보다 10% 더 엄격하게(살짝 여유를 두고) 설정합니다.")]
-    [Range(0.5f, 1f)]
-    public float angleThresholdSafetyMargin = 1f;
-
-    private bool isCalibratingAngleThreshold = false;
-    private bool isCalibratingSequence = false;
 
     [Header("노이즈 완화 (이동평균)")]
     [Tooltip("저장 시점에 사용할 최근 프레임 점수의 개수. 클수록 부드럽지만 반응이 느려짐.")]
@@ -157,21 +130,6 @@ public class fass : MonoBehaviour
             runner.OnResultOutput -= HandleResult;
     }
 
-    void Update()
-    {
-        // 캘리브레이션 시작 키 입력 감지: 무표정 → (자동 전환) → 한계각도 순서로 이어서 진행됨
-        if (Input.GetKeyDown(calibrationKey) && !isCalibratingSequence)
-        {
-            StartCoroutine(CalibrateSequence());
-        }
-
-        // 각도 임계값만 단독으로 다시 측정하고 싶을 때 (무표정 기준값은 그대로 두고 한계각도만 재조정)
-        if (Input.GetKeyDown(angleThresholdCalibrationKey) && !isCalibratingAngleThreshold && !isCalibratingSequence)
-        {
-            StartCoroutine(CalibrateAngleThreshold());
-        }
-    }
-
     // FaceLandmarkerResult -> List<Vector3> 변환
     private void HandleResult(FaceLandmarkerResult result)
     {
@@ -199,7 +157,7 @@ public class fass : MonoBehaviour
 
     public void OnFaceLandmarksDetected(List<Vector3> landmarks)
     {
-        latestLandmarks = landmarks; // 캘리브레이션 코루틴이 최신 랜드마크를 참조할 수 있도록 캐싱
+        latestLandmarks = landmarks;
 
         Debug.Log("[fass] 1단계 성공: 미디어파이프로부터 얼굴 좌표를 전달받았습니다!");
 
@@ -217,6 +175,7 @@ public class fass : MonoBehaviour
 
         // 얼굴 각도 게이트: 옆으로 너무 돌아가거나(Yaw) 위아래로 너무 숙여지면(Pitch)
         // 랜드마크 왜곡으로 점수가 부정확해지므로 이번 프레임 분석 자체를 건너뜀.
+        // maxYawRatio / maxPitchRatio는 인스펙터에서 수동으로 입력한 값을 사용.
         if (enableAngleGate && IsFaceTooAngled(landmarks, out string angleReason))
         {
             isFaceTooAngled = true;
@@ -226,8 +185,6 @@ public class fass : MonoBehaviour
         isFaceTooAngled = false;
 
         // 프레임 노이즈 완화: 매 프레임 점수를 계산해서 슬라이딩 윈도우에 쌓아둠.
-        // 이렇게 하면 저장 시점에 하필 랜드마크가 튄 프레임 하나만 캡처하는 대신
-        // 최근 N프레임의 평균값을 사용할 수 있음.
         float frameSmile = CalculateSmile(landmarks);
         float frameSurprise = CalculateSurprise(landmarks);
         float frameAngry = CalculateAngry(landmarks);
@@ -245,7 +202,6 @@ public class fass : MonoBehaviour
         lastLoggedTime = now;
 
         // 저장 시점에는 단일 프레임 값이 아니라 최근 윈도우의 평균값을 사용
-        // (감정별 개별 점수는 여전히 종합 평가 계산에는 쓰이지만, 저장 자체는 하지 않음)
         float smileScore = Average(smileBuffer);
         float surpriseScore = Average(surpriseBuffer);
         float angryScore = Average(angryBuffer);
@@ -260,7 +216,6 @@ public class fass : MonoBehaviour
 
         Debug.Log($"[fass] 2단계 성공: 점수 계산 완료 (미소:{smileScore:F1}, 놀람:{surpriseScore:F1}, 분노:{angryScore:F1}, 샘플수:{smileBuffer.Count})");
 
-        // 감정별 합계/평균을 각각 따로 출력 (디버그용, 저장 대상 아님)
         Debug.Log($"[fass][기쁨] 이번 구간 평균:{smileScore:F2} | 누적 합계:{smileTotal:F1} | 누적 평균:{SmileAverage:F2} (총 {smileCount}회 기록)");
         Debug.Log($"[fass][놀람] 이번 구간 평균:{surpriseScore:F2} | 누적 합계:{surpriseTotal:F1} | 누적 평균:{SurpriseAverage:F2} (총 {surpriseCount}회 기록)");
         Debug.Log($"[fass][분노] 이번 구간 평균:{angryScore:F2} | 누적 합계:{angryTotal:F1} | 누적 평균:{AngryAverage:F2} (총 {angryCount}회 기록)");
@@ -278,8 +233,6 @@ public class fass : MonoBehaviour
         Debug.Log($"[fass][평가] 종합 평가: {summary} ({normalizedScore:F1}/5.0)\n{detail}\n{improvementNotes}");
         // ===================================================================
 
-        // [수정] 저장 시에는 미소/놀람/분노 개별 점수와 평가등급(summary)을 제거하고,
-        // 종합 점수(normalizedScore) + 총평(detail) + 개선사항(improvementNotes) + 시간(now)을 전달.
         if (csvLogger != null)
         {
             csvLogger.SaveScoreToCSV(now, normalizedScore, detail, improvementNotes);
@@ -324,7 +277,7 @@ public class fass : MonoBehaviour
         return sum / buffer.Count;
     }
 
-    // ===== Raw ratio 계산 (캘리브레이션과 점수 계산 양쪽에서 재사용) =====
+    // ===== Raw ratio 계산 =====
 
     private float GetRawSmileRatio(List<Vector3> landmarks)
     {
@@ -350,11 +303,7 @@ public class fass : MonoBehaviour
     }
 
     // ===== 얼굴 각도(Head Pose) 판정 =====
-    // MediaPipe 랜드마크의 z값은 카메라 방향 깊이를 나타내므로,
-    // 좌우 대칭점(양쪽 귀) 또는 상하 대칭점(이마/턱)의 z 차이가 클수록
-    // 얼굴이 카메라 정면이 아니라 옆/위아래로 돌아가 있다는 뜻.
 
-    // Yaw(좌우 회전) 비율만 단독으로 계산 (캘리브레이션에서 재사용)
     private float GetRawYawRatio(List<Vector3> landmarks)
     {
         float faceWidth = Vector3.Distance(landmarks[234], landmarks[454]);
@@ -363,7 +312,6 @@ public class fass : MonoBehaviour
         return Mathf.Abs(leftEarZ - rightEarZ) / (faceWidth > 0 ? faceWidth : 1f);
     }
 
-    // Pitch(상하 회전) 비율만 단독으로 계산 (캘리브레이션에서 재사용)
     private float GetRawPitchRatio(List<Vector3> landmarks)
     {
         float faceHeight = Vector3.Distance(landmarks[10], landmarks[152]);
@@ -475,7 +423,6 @@ public class fass : MonoBehaviour
             detail = "면접 태도에 부정적으로 작용할 수 있는 표정 변화가 감지되었습니다.";
         }
 
-        // 개별 감정별 구체적인 개선사항 (총평과는 별도로 모아서 반환)
         var improvementNotes = new System.Text.StringBuilder();
 
         if (angry >= 2.5f)
@@ -490,122 +437,4 @@ public class fass : MonoBehaviour
         return (grade, summary, detail, improvementNotes.ToString(), normalizedScore);
     }
     // ===================================================================
-
-    // ===== 자동 캘리브레이션 =====
-
-    private System.Collections.IEnumerator CalibrateNeutralRatios()
-    {
-        isCalibrating = true;
-        Debug.Log($"[fass] 캘리브레이션 시작! {calibrationDuration}초 동안 무표정을 유지해주세요...");
-
-        float smileSum = 0f;
-        float surpriseSum = 0f;
-        float angrySum = 0f;
-        int sampleCount = 0;
-        float elapsed = 0f;
-
-        while (elapsed < calibrationDuration)
-        {
-            if (latestLandmarks != null && latestLandmarks.Count >= 468
-                && !(enableAngleGate && IsFaceTooAngled(latestLandmarks, out _)))
-            {
-                smileSum += GetRawSmileRatio(latestLandmarks);
-                surpriseSum += GetRawSurpriseRatio(latestLandmarks);
-                angrySum += GetRawAngryRatio(latestLandmarks);
-                sampleCount++;
-            }
-
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        if (sampleCount > 0)
-        {
-            neutralSmileRatio = smileSum / sampleCount;
-            neutralSurpriseRatio = surpriseSum / sampleCount;
-            neutralAngryRatio = angrySum / sampleCount;
-
-            Debug.Log($"[fass] 캘리브레이션 완료! (샘플 {sampleCount}개)\n" +
-                       $"neutralSmileRatio = {neutralSmileRatio:F4}\n" +
-                       $"neutralSurpriseRatio = {neutralSurpriseRatio:F4}\n" +
-                       $"neutralAngryRatio = {neutralAngryRatio:F4}");
-        }
-        else
-        {
-            Debug.LogWarning("[fass] 캘리브레이션 실패: 유효한 랜드마크 샘플을 얻지 못했습니다. 얼굴이 카메라에 잘 잡히는지 확인하세요.");
-        }
-
-        isCalibrating = false;
-    }
-
-    // Play 모드에서 angleThresholdCalibrationKey(기본 Tab)를 누른 채로
-    // "여기까지는 허용하고 싶다"는 가장 심한 각도를 angleThresholdCalibrationDuration(기본 3초) 동안
-    // 유지하면, 그 구간에서 관측된 최대 Yaw/Pitch 비율을 그대로 임계값으로 반영함.
-    private System.Collections.IEnumerator CalibrateAngleThreshold()
-    {
-        isCalibratingAngleThreshold = true;
-        Debug.Log($"[fass] 각도 임계값 캘리브레이션 시작! {angleThresholdCalibrationDuration}초 동안 " +
-                  "허용하고 싶은 가장 심한 각도로 고개를 유지해주세요...");
-
-        float maxObservedYaw = 0f;
-        float maxObservedPitch = 0f;
-        int sampleCount = 0;
-        float elapsed = 0f;
-
-        while (elapsed < angleThresholdCalibrationDuration)
-        {
-            if (latestLandmarks != null && latestLandmarks.Count >= 468)
-            {
-                float yaw = GetRawYawRatio(latestLandmarks);
-                float pitch = GetRawPitchRatio(latestLandmarks);
-
-                if (yaw > maxObservedYaw) maxObservedYaw = yaw;
-                if (pitch > maxObservedPitch) maxObservedPitch = pitch;
-
-                sampleCount++;
-            }
-
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        if (sampleCount > 0)
-        {
-            maxYawRatio = maxObservedYaw * angleThresholdSafetyMargin;
-            maxPitchRatio = maxObservedPitch * angleThresholdSafetyMargin;
-
-            Debug.Log($"[fass] 각도 임계값 캘리브레이션 완료! (샘플 {sampleCount}개)\n" +
-                       $"관측된 최대 Yaw={maxObservedYaw:F3}, Pitch={maxObservedPitch:F3}\n" +
-                       $"안전 여유율 {angleThresholdSafetyMargin:F2} 적용 후 → " +
-                       $"maxYawRatio={maxYawRatio:F3}, maxPitchRatio={maxPitchRatio:F3}");
-        }
-        else
-        {
-            Debug.LogWarning("[fass] 각도 임계값 캘리브레이션 실패: 유효한 랜드마크 샘플을 얻지 못했습니다. 얼굴이 카메라에 잘 잡히는지 확인하세요.");
-        }
-
-        isCalibratingAngleThreshold = false;
-    }
-
-    // calibrationKey(기본 Space) 한 번으로 무표정 캘리브레이션과 한계각도 캘리브레이션을
-    // 순서대로 자동 진행함: 1) 무표정 유지(calibrationDuration) → 2) 전환 대기(angleTransitionDelay,
-    // 이 시간 동안 한계각도로 고개를 돌리면 됨) → 3) 한계각도 유지(angleThresholdCalibrationDuration)
-    private System.Collections.IEnumerator CalibrateSequence()
-    {
-        isCalibratingSequence = true;
-
-        Debug.Log("[fass] 통합 캘리브레이션 시작! 1단계: 무표정 기준값을 측정합니다.");
-        yield return StartCoroutine(CalibrateNeutralRatios());
-
-        Debug.Log($"[fass] 2단계 준비: {angleTransitionDelay}초 안에 허용하고 싶은 " +
-                  "가장 심한 각도로 고개를 돌려 그 자세를 유지해주세요.");
-        yield return new WaitForSeconds(angleTransitionDelay);
-
-        Debug.Log($"[fass] 2단계 측정 시작! {angleThresholdCalibrationDuration}초 동안 " +
-                  "지금 자세(한계각도)를 그대로 유지해주세요.");
-        yield return StartCoroutine(CalibrateAngleThreshold());
-
-        Debug.Log("[fass] 통합 캘리브레이션 완료! 무표정 기준값과 각도 임계값이 모두 설정되었습니다.");
-        isCalibratingSequence = false;
-    }
 }
