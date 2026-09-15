@@ -48,8 +48,8 @@
  total_score             REAL      NULL                               종합 점수 ※자동계산 안 됨, 직접 SetTotalScore 호출 필요
  summary_text            TEXT      NULL                               공용 총평
  advice_text             TEXT      NULL                               공용 개선 가이드 (표정 코멘트 "[표정] ..." 포함)
- created_at              TEXT      NOT NULL DEFAULT (localtime)        결과 저장 일시
- version                 INTEGER   NOT NULL DEFAULT 1                  낙관적 동시성 제어용 (자동 증가)
+ created_at              TEXT      NOT NULL DEFAULT (localtime)       결과 저장 일시
+ version                 INTEGER   NOT NULL DEFAULT 1                 낙관적 동시성 제어용 (자동 증가)
 
  ⚠ App_Setting 테이블 자체가 없음 (완전히 제거됨)
  ⚠ total_score 자동 계산 트리거 없음 (누군가 3개 영역 점수를 합산해서 SetTotalScore로 직접 저장해야 함)

@@ -47,6 +47,7 @@ namespace InterviewDb.Core
             Instance = this;
             DontDestroyOnLoad(gameObject);
 
+
             string path = string.IsNullOrEmpty(databasePath)
                 ? Path.Combine(Application.persistentDataPath, "interview.db")
                 : databasePath;
