@@ -17,7 +17,8 @@
  컬럼명              타입      제약 조건                                   설명
  --------------------------------------------------------------------------------
  session_id          INTEGER   PK, AUTOINCREMENT                          면접 세션 고유 번호
- job_category        TEXT      NOT NULL DEFAULT 'IT'                      선택 직종
+ job_category        TEXT      NOT NULL DEFAULT 'IT'                      선택 직종 (기본값: IT개발자)
+ interview_type      TEXT      NOT NULL DEFAULT '일상적 대화 면접'            면접 유형 (기본값: 일상적 대화 면접)
  session_status      TEXT      NOT NULL, CHECK(In-Progress/Completed/Aborted)  세션 상태
  end_time            TEXT      NULL                                       면접 종료 일시
  duration_seconds    INTEGER   NULL, CHECK(duration_seconds >= 0)         면접 소요 시간(초)

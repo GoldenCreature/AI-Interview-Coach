@@ -92,6 +92,11 @@ namespace InterviewDb
         // 한종수 팀장 연동 통로 (면접 세션 시작 / 중단 / 음성·내용 결과 적재)
         // ============================================================
 
+
+        // 클래스 상단 필드에 세션 직무/유형 임시 보관 변수 추가
+        private string _currentJobCategory;
+        private string _currentInterviewType;
+
         /// <summary>
         /// 면접 시작 시 호출: 세션 레코드를 생성하고 발급된 ID를 반환 및 보관합니다.
         /// </summary>
@@ -101,14 +106,17 @@ namespace InterviewDb
             _latestCachedReport = null;
             _sessionStartTime = DateTime.UtcNow;
 
+            // 빈 문자열 방어: 공백이 들어오면 기본값 지정
+            _currentJobCategory = string.IsNullOrWhiteSpace(jobCategory) ? "IT" : jobCategory;
+            _currentInterviewType = string.IsNullOrWhiteSpace(interviewType) ? "일상적 대화 면접" : interviewType;
+
             ExecuteSafe(() =>
             {
-                string combinedJob = string.IsNullOrEmpty(interviewType) ? jobCategory : $"{jobCategory} ({interviewType})";
-                string sql = "INSERT INTO Interview_Session (job_category, session_status) VALUES (?, 'In-Progress');";
-                _connection.Execute(sql, combinedJob);
+                string sql = "INSERT INTO Interview_Session (job_category, interview_type, session_status) VALUES (?, ?, 'In-Progress');";
+                _connection.Execute(sql, _currentJobCategory, _currentInterviewType);
 
-                CurrentSessionId = _connection.ExecuteScalar<int>("SELECT last_insert_rowid();");
-                Debug.Log($"[InterviewDbManager] 세션 발급 완료 (ID: {CurrentSessionId})");
+                CurrentSessionId = (int)SQLite3.LastInsertRowid(_connection.Handle);
+                Debug.Log($"[InterviewDbManager] 세션 발급 완료 (ID: {CurrentSessionId}, 직무: {_currentJobCategory}, 유형: {_currentInterviewType})");
             });
 
             return CurrentSessionId;
@@ -161,6 +169,9 @@ namespace InterviewDb
             {
                 _latestCachedReport = new SessionReportRow { SessionId = targetId };
             }
+            _latestCachedReport.JobCategory = _currentJobCategory;         // [캐시 누락 방지] 직무 보관
+            _latestCachedReport.InterviewType = _currentInterviewType;     // [캐시 누락 방지] 면접 유형 보관
+            _latestCachedReport.SessionStatus = "Completed";
             _latestCachedReport.EndTime = endTime;
             _latestCachedReport.DurationSeconds = duration;
             _latestCachedReport.ScoreAudio = scoreAudio;
