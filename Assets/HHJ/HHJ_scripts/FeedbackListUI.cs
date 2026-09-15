@@ -1,5 +1,6 @@
 ﻿using HJS;
-using System.Collections;
+using InterviewDb;
+using InterviewDb.Models;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -15,14 +16,14 @@ public class FeedbackListUI : MonoBehaviour
     public Button confirmDeleteBtn;      // 팝업의 [확인] 버튼
     public Button cancelDeleteBtn;       // 팝업의 [취소] 버튼
 
-    private FeedbackData targetDataToDelete; // 삭제 대기 중인 데이터 보관함
+    private SessionReportRow targetDataToDelete; // DB 삭제 대기 중인 레코드 보관함
 
     private void Start()
     {
         // 시작할 때 팝업 무조건 숨기기
         if (deletePopupPanel != null) deletePopupPanel.SetActive(false);
 
-        // 팝업 버튼들 이벤트 미리 연결해두기
+        // 팝업 버튼 이벤트 연결
         if (confirmDeleteBtn != null)
             confirmDeleteBtn.onClick.AddListener(ExecuteDelete);
 
@@ -48,12 +49,10 @@ public class FeedbackListUI : MonoBehaviour
 
                 if (itemUI != null)
                 {
-                    itemUI.Setup(data,
-                        () => // 삭제 버튼 눌렀을 때의 동작
-                        {
-                            ShowDeletePopup(data);
-                        }
-                    );
+                    itemUI.Setup(data, () =>
+                    {
+                        ShowDeletePopup(data);
+                    });
                 }
             }
         }
@@ -61,30 +60,35 @@ public class FeedbackListUI : MonoBehaviour
 
     // --- 팝업 관련 기능 ---
 
-    private void ShowDeletePopup(FeedbackData data)
+    private void ShowDeletePopup(SessionReportRow data)
     {
-        targetDataToDelete = data; // 어떤 걸 지울지 잠시 기억해둠
-        if (deletePopupPanel != null) deletePopupPanel.SetActive(true); // 팝업 켜기
+        targetDataToDelete = data;
+        if (deletePopupPanel != null) deletePopupPanel.SetActive(true);
     }
 
     private void ClosePopup()
     {
-        targetDataToDelete = null; // 기억 비우기
-        if (deletePopupPanel != null) deletePopupPanel.SetActive(false); // 팝업 끄기
+        targetDataToDelete = null;
+        if (deletePopupPanel != null) deletePopupPanel.SetActive(false);
     }
 
     private void ExecuteDelete()
     {
         if (targetDataToDelete != null)
         {
-            // 1. 매니저에서 진짜로 삭제
+            // 1. SQLite DB에서 세션 삭제 (Interview_Session 및 연관 결과 연쇄 삭제)
             FeedbackManager.Instance.RemoveFeedback(targetDataToDelete);
 
-            // 2. 리스트 다시 그리기 (삭제된 항목이 사라진 상태로 다시 뜸)
+            // 2. 리스트 다시 갱신
             RefreshList();
         }
 
         // 3. 팝업 닫기
         ClosePopup();
+    }
+
+    public void MainBtn()
+    {
+        GameManager.Instance.LoadTitleScene();
     }
 }

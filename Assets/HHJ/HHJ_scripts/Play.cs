@@ -34,19 +34,6 @@ namespace PlayUI.Scripts
         {
             Debug.Log("[Play] 면접 종료 감지 → 타이머 정지 및 데이터 저장");
             PauseTimer();
-
-            // [핵심] 서로 다른 씬이므로 FeedbackManager에 추가하여 파일 저장
-            if (FeedbackManager.Instance != null)
-            {
-                FeedbackData newData = new FeedbackData
-                {
-                    dateText = System.DateTime.Now.ToString("yyyy-MM-dd"),
-                    jobText = InterviewManager.Instance != null ? InterviewManager.Instance.SelectedJob.ToString() : "IT",
-                    typeText = InterviewManager.Instance != null ? InterviewManager.Instance.SelectedInterviewerType.ToString() : "일상적"
-                };
-
-                FeedbackManager.Instance.AddFeedback(newData);
-            }
         }
 
         public void OnClickSettings()
