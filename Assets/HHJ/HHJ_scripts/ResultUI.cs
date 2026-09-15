@@ -33,10 +33,17 @@ namespace ResultUI.Scripts
         [SerializeField] private Image contentBarFill;  // 내용 영역 막대 Image
         [SerializeField] private Image attitudeBarFill; // 태도 영역 막대 Image
 
+        [Header("--- [테스트용 옵션] ---")]
+        [SerializeField] private bool useDummyTest = false;
+        [Range(0f, 5f)][SerializeField] private float testVoiceScore = 4.2f;
+        [Range(0f, 5f)][SerializeField] private float testContentScore = 3.5f;
+        [Range(0f, 5f)][SerializeField] private float testAttitudeScore = 4.8f;
+
         private const float MAX_SCORE = 5.0f; // 만점 기준
 
         private void Start()
         {
+
             // 피드백 목록에서 특정 결과 항목을 선택하여 클릭하고 넘어온 경우
             if (FeedbackManager.Instance != null && FeedbackManager.Instance.CurrentSelectedFeedback != null)
             {
@@ -58,9 +65,17 @@ namespace ResultUI.Scripts
         {
             InterviewManager.OnEvaluationReceived -= HandleEvaluationReceived;
         }
+        private void OnValidate()
+        {
+            // Play 모드가 아닐 때도 Inspector 슬라이더를 움직이면 즉시 차트에 반영
+            if (useDummyTest)
+            {
+                ApplyChartScores(testVoiceScore, testContentScore, testAttitudeScore);
+            }
+        }
 
         /// <summary>
-        /// 세로 막대 차트 fillAmount 적용 함수 (0.0 ~ 1.0)
+        /// 가로 막대 차트 fillAmount 적용 함수 (0.0 ~ 1.0, 왼쪽에서 오른쪽으로 채워짐)
         /// </summary>
         public void ApplyChartScores(float voiceScore, float contentScore, float attitudeScore)
         {
@@ -269,6 +284,15 @@ namespace ResultUI.Scripts
         {
             InterviewManager.Instance.ResetInterview();
             GameManager.Instance.LoadTitleScene();
+        }
+
+        private void Update()
+        {
+            // Play 모드 중 Inspector 슬라이더를 움직이면 실시간 반영
+            if (useDummyTest)
+            {
+                ApplyChartScores(testVoiceScore, testContentScore, testAttitudeScore);
+            }
         }
     }
 }
