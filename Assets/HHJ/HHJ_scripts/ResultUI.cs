@@ -122,45 +122,31 @@ namespace ResultUI.Scripts
 
             if (selectedFeedback == null)
             {
-                Debug.LogWarning("[Result] 선택된 피드백 데이터가 없습니다.");
+                LoadLatestDbResult();
                 return;
             }
 
-            // 1. DB 매니저가 유효한 경우, 전체 리포트 중 선택된 정보와 일치하는 레코드 검색
+            // DB에서 SessionId가 정확히 일치하는 레코드 검색
             if (InterviewDbManager.Instance != null)
             {
                 var allReports = InterviewDbManager.Instance.GetAllSessionReports();
-
-                // 직무(JobCategory) 또는 ID 등을 기준으로 매칭 (일치하는 레코드가 있으면 우선 표시)
-                SessionReportRow matchedReport = null;
-                if (allReports != null && allReports.Count > 0)
-                {
-                    matchedReport = allReports.Find(r => r.JobCategory == selectedFeedback.jobText);
-
-                    // 일치하는 항목이 없으면 가장 최근 세션 리포트 사용
-                    if (matchedReport == null)
-                    {
-                        matchedReport = InterviewDbManager.Instance.GetLatestSessionReport();
-                    }
-                }
+                SessionReportRow matchedReport = allReports?.Find(r => r.SessionId == selectedFeedback.SessionId);
 
                 if (matchedReport != null)
                 {
                     DisplayReportData(matchedReport);
-                    FeedbackManager.Instance.CurrentSelectedFeedback = null;
-                    return;
+                }
+                else
+                {
+                    DisplayReportData(selectedFeedback);
                 }
             }
-
-            // 2. DB 데이터를 찾지 못한 경우 선택된 feedback 데이터 기반 텍스트 표출
-            if (conversationLogText != null)
+            else
             {
-                conversationLogText.text = $"[면접 일자 : {selectedFeedback.dateText} | 직무 : {selectedFeedback.jobText} | 유형 : {selectedFeedback.typeText}]\n\n" +
-                                           $"[지원자]\n안녕하세요, {selectedFeedback.jobText} 직무 지원자입니다.\n\n" +
-                                           $"[면접관]\n반갑습니다. 면접을 시작하겠습니다.";
+                DisplayReportData(selectedFeedback);
             }
 
-            // 데이터 사용 후 초기화
+            // 다음 면접 종료 시 기존 선택 정보가 남지 않도록 초기화
             FeedbackManager.Instance.CurrentSelectedFeedback = null;
         }
 
