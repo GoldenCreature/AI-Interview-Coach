@@ -1,26 +1,43 @@
-﻿using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
+﻿using HJS;
+using InterviewDb;
+using InterviewDb.Models;
 using System;
-using UnityEngine.SceneManagement;
-using HJS;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
 
 public class FeedbackItemUI : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI dateText;
     [SerializeField] private TextMeshProUGUI jobTypeText;
 
-    [SerializeField] private Button mainButton;  
-    [SerializeField] private Button deleteButton; 
+    [SerializeField] private Button mainButton;
+    [SerializeField] private Button deleteButton;
 
-    private FeedbackData myData; 
+    private SessionReportRow myData;
 
-    public void Setup(FeedbackData data, Action onDeleteClick)
+    public void Setup(SessionReportRow data, Action onDeleteClick)
     {
-        myData = data; // 데이터 저장
+        myData = data;
 
-        if (dateText != null) dateText.text = myData.dateText;
-        if (jobTypeText != null) jobTypeText.text = $"직무 : {myData.jobText} / 유형 : {myData.typeText}";
+        if (dateText != null)
+        {
+            // DB의 end_time 표출 (예: 2026-09-15 14:30:00)
+            dateText.text = !string.IsNullOrEmpty(myData.EndTime) ? myData.EndTime : "일시 정보 없음";
+        }
+
+        if (jobTypeText != null)
+        {
+            string categoryText = myData.JobCategory ?? "";
+
+            // 영어 면접 유형 명칭을 한글로 치환
+            categoryText = categoryText.Replace("Casual", "일반")
+                                       .Replace("Intensive", "심화");
+
+            jobTypeText.text = !string.IsNullOrEmpty(categoryText)
+                ? $"직무/유형 : {categoryText}"
+                : "직무 정보 없음";
+        }
 
         if (deleteButton != null)
         {
