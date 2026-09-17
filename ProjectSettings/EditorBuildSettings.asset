@@ -26,7 +26,10 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/HJS/HJS_scene/Interview Room.unity
     guid: dcc8d6bf0f68bd047875e23c724c6217
-  - enabled: 0
+  - enabled: 1
     path: Assets/Scenes/Play.unity
     guid: 66b75ba92175ef94ab47033b800ed8d0
+  - enabled: 0
+    path: Assets/SMS/MediaPipeUnity/Samples/Scenes/Face Landmark Detection/test.unity
+    guid: a9ada718434bf2c4f8593fe4621eea87
   m_configObjects: {}
