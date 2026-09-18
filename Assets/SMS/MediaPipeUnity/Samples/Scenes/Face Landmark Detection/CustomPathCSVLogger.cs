@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using UnityEngine;
 
 public class CustomPathCSVLogger : MonoBehaviour
@@ -13,6 +14,11 @@ public class CustomPathCSVLogger : MonoBehaviour
     public string fileName = "FaceScores.csv";
 
     private string finalFilePath;
+
+    // 파일을 매번 열고 닫지 않고, Awake에서 한 번 열어 계속 재사용합니다.
+    // MediaPipe 콜백 스레드에서 동시에 호출될 수 있으므로 lock으로 보호합니다.
+    private StreamWriter persistentWriter;
+    private readonly object writeLock = new object();
 
     void Awake()
     {
@@ -54,27 +60,33 @@ public class CustomPathCSVLogger : MonoBehaviour
         finalFilePath = Path.Combine(directoryPath, fileName);
         Debug.Log($"[CSV Logger] 최종 CSV 파일 저장 경로: {finalFilePath}");
 
-        // 4. 파일이 없을 때만 헤더(Header) 작성
-        // [수정] 감정별 개별 점수(Smile/Surprise/Angry)와 평가등급(EvaluationGrade)은 저장하지 않고,
-        // Timestamp + EvaluationScore + EvaluationDetail만 저장
-        if (!File.Exists(finalFilePath))
+        bool isNewFile = !File.Exists(finalFilePath);
+
+        // 4. 파일을 한 번만 열어서 세션 내내 재사용 (AutoFlush로 매 줄 즉시 디스크 반영)
+        try
         {
-            try
+            // UTF-8 BOM을 명시적으로 포함시켜 Excel이 인코딩을 올바르게 인식하도록 함
+            // (BOM이 없으면 한국어 Windows의 Excel이 CP949로 잘못 추측해 한글이 깨짐)
+            persistentWriter = new StreamWriter(finalFilePath, append: true, new UTF8Encoding(true)) { AutoFlush = true };
+
+            // 새 파일일 때만 헤더(Header) 작성
+            // [수정] 감정별 개별 점수(Smile/Surprise/Angry)와 평가등급(EvaluationGrade)은 저장하지 않고,
+            // Timestamp + EvaluationScore + EvaluationDetail만 저장
+            if (isNewFile)
             {
-                using (StreamWriter sw = File.CreateText(finalFilePath))
-                {
-                    sw.WriteLine("Timestamp,EvaluationScore,EvaluationDetail,ImprovementNotes");
-                }
+                persistentWriter.WriteLine("Timestamp,EvaluationScore,EvaluationDetail,ImprovementNotes");
             }
-            catch (Exception e)
-            {
-                Debug.LogError($"[CSV Logger] 초기 파일 생성 실패: {e.Message}");
-            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[CSV Logger] 파일 오픈 실패: {e.Message}");
+            persistentWriter = null;
         }
     }
 
     /// <summary>
     /// 외부에서 시간 + 종합 평가 점수/코멘트를 전달받아 CSV에 한 줄씩 기록하는 함수
+    /// MediaPipe 콜백 스레드에서 호출될 수 있으므로 lock으로 동시 접근을 막습니다.
     /// </summary>
     public void SaveScoreToCSV(DateTime timestamp, float evaluationScore, string evaluationDetail, string improvementNotes)
     {
@@ -89,17 +101,23 @@ public class CustomPathCSVLogger : MonoBehaviour
 
         string csvLine = $"{timestampStr},{evaluationScore:F1},{safeDetail},{safeImprovementNotes}";
 
-        try
+        lock (writeLock)
         {
-            using (StreamWriter sw = File.AppendText(finalFilePath))
+            if (persistentWriter == null)
             {
-                sw.WriteLine(csvLine);
+                Debug.LogWarning("[CSV Logger] writer가 준비되지 않아 저장을 건너뜁니다.");
+                return;
             }
-            Debug.Log($"[CSV Logger] 점수 등록 완료 -> {csvLine}");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[CSV Logger] 파일 쓰기 실패: {e.Message}");
+
+            try
+            {
+                persistentWriter.WriteLine(csvLine);
+                Debug.Log($"[CSV Logger] 점수 등록 완료 -> {csvLine}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[CSV Logger] 파일 쓰기 실패: {e.Message}");
+            }
         }
     }
 
@@ -113,5 +131,35 @@ public class CustomPathCSVLogger : MonoBehaviour
             return "\"" + field.Replace("\"", "\"\"") + "\"";
         }
         return field;
+    }
+
+    private void OnDestroy()
+    {
+        CloseWriter();
+    }
+
+    private void OnApplicationQuit()
+    {
+        CloseWriter();
+    }
+
+    private void CloseWriter()
+    {
+        lock (writeLock)
+        {
+            if (persistentWriter != null)
+            {
+                try
+                {
+                    persistentWriter.Flush();
+                    persistentWriter.Dispose();
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[CSV Logger] writer 종료 중 예외: {e.Message}");
+                }
+                persistentWriter = null;
+            }
+        }
     }
 }

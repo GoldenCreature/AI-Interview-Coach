@@ -9,7 +9,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 994985366407176105}
-  - component: {fileID: 2016563591691362372}
   m_Layer: 0
   m_Name: face
   m_TagString: Untagged
@@ -32,38 +31,3 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2016563591691362372
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4729462092871287591}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7c74d434c0a864b42ba8649932283d6f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  csvLogger: {fileID: 0}
-  dbLogger: {fileID: 0}
-  runner: {fileID: 0}
-  neutralSmileRatio: 0.03
-  neutralSurpriseRatio: 0.05
-  neutralAngryRatio: 0.23
-  calibrationDuration: 3
-  calibrationKey: 32
-  enableAngleGate: 1
-  maxYawRatio: 0.8
-  maxPitchRatio: 0.8
-  isFaceTooAngled: 0
-  angleThresholdCalibrationKey: 9
-  angleThresholdCalibrationDuration: 3
-  angleTransitionDelay: 2
-  angleThresholdSafetyMargin: 1
-  smoothingWindowSize: 30
-  latestGrade: 0
-  latestEvaluationSummary: 
-  latestEvaluationDetail: 
-  latestImprovementNotes: 
-  latestEvaluationScore: 0
-  logIntervalMinutes: 3
