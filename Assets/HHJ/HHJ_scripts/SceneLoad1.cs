@@ -1,4 +1,4 @@
-using HJS;
+ï»¿using HJS;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -10,41 +10,41 @@ namespace LoadingUI.Scripts
 {
     public class SceneLoad1 : MonoBehaviour
     {
-        [Header("·Îµù ½½¶óÀÌ´õ")]
+        [Header("ë¡œë”© ìŠ¬ë¼ì´ë”")]
         public Slider progressbar;
         public float loadSpeed = 0.5f;
 
-        [Header("¼±ÅÃÇÑ ¸éÁ¢ Á¤º¸ ÅØ½ºÆ® UI")]
-        [SerializeField] private TextMeshProUGUI jobText;  // ÁÂÃø Á÷¹« ÅØ½ºÆ® (¿¹: IT °³¹ßÀÚ)
-        [SerializeField] private TextMeshProUGUI typeText; // ¿ìÃø ¸éÁ¢ À¯Çü ÅØ½ºÆ® (¿¹: ÀÏ»óÀû ´ëÈ­ ¸éÁ¢)
+        [Header("ì„ íƒí•œ ë©´ì ‘ ì •ë³´ í…ìŠ¤íŠ¸ UI")]
+        [SerializeField] private TextMeshProUGUI jobText;  // ì¢Œì¸¡ ì§ë¬´ í…ìŠ¤íŠ¸ (ì˜ˆ: IT ê°œë°œì)
+        [SerializeField] private TextMeshProUGUI typeText; // ìš°ì¸¡ ë©´ì ‘ ìœ í˜• í…ìŠ¤íŠ¸ (ì˜ˆ: ì¼ìƒì  ëŒ€í™” ë©´ì ‘)
 
         private void Start()
         {
-            // ¸éÁ¢ Á¤º¸ UI ÅØ½ºÆ® ¾÷µ¥ÀÌÆ®
+            // ë©´ì ‘ ì •ë³´ UI í…ìŠ¤íŠ¸ ì—…ë°ì´íŠ¸
             UpdateInterviewInfo();
 
-            // ºñµ¿±â ¾À ·Îµù ½ÃÀÛ
+            // ë¹„ë™ê¸° ì”¬ ë¡œë”© ì‹œì‘
             StartCoroutine(LoadScene());
         }
 
         /// <summary>
-        /// InterviewManager¿¡¼­ ¼±ÅÃµÈ Á÷¹«¿Í ¸éÁ¢ À¯ÇüÀ» ÀĞ¾î¿Í ÅØ½ºÆ®¸¦ °¢°¢ ¾÷µ¥ÀÌÆ®ÇÕ´Ï´Ù.
+        /// InterviewManagerì—ì„œ ì„ íƒëœ ì§ë¬´ì™€ ë©´ì ‘ ìœ í˜•ì„ ì½ì–´ì™€ í…ìŠ¤íŠ¸ë¥¼ ê°ê° ì—…ë°ì´íŠ¸í•©ë‹ˆë‹¤.
         /// </summary>
         private void UpdateInterviewInfo()
         {
-            string jobName = "IT °³¹ßÀÚ";
-            string typeName = "ÀÏ»óÀû ´ëÈ­ ¸éÁ¢";
+            string jobName = "IT ê°œë°œì";
+            string typeName = "ì¼ìƒì  ëŒ€í™” ë©´ì ‘";
 
             if (InterviewManager.Instance != null)
             {
-                // ¼±ÅÃµÈ Á÷¹« °¡Á®¿À±â
+                // ì„ íƒëœ ì§ë¬´ ê°€ì ¸ì˜¤ê¸°
                 jobName = InterviewManager.Instance.SelectedJob.ToString();
 
-                // ¼±ÅÃµÈ ¸éÁ¢ À¯Çü °¡Á®¿À±â ÈÄ ÇÑ±Û ¸íÄª º¯È¯
+                // ì„ íƒëœ ë©´ì ‘ ìœ í˜• ê°€ì ¸ì˜¤ê¸° í›„ í•œê¸€ ëª…ì¹­ ë³€í™˜
                 typeName = GetTypeDisplayName(InterviewManager.Instance.SelectedInterviewerType);
             }
 
-            // °¢°¢ÀÇ TextMeshProUGUI UI¿¡ ¹İ¿µ
+            // ê°ê°ì˜ TextMeshProUGUI UIì— ë°˜ì˜
             if (jobText != null)
             {
                 jobText.text = jobName;
@@ -57,14 +57,14 @@ namespace LoadingUI.Scripts
         }
 
         /// <summary>
-        /// InterviewerType EnumÀ» ÇÑ±¹¾î Ç¥½Ã ¸íÄªÀ¸·Î º¯È¯
+        /// InterviewerType Enumì„ í•œêµ­ì–´ í‘œì‹œ ëª…ì¹­ìœ¼ë¡œ ë³€í™˜
         /// </summary>
         private string GetTypeDisplayName(InterviewerType type)
         {
             return type switch
             {
-                InterviewerType.Intensive => "Á÷¹« ±â¹İ ½ÉÈ­ ¸éÁ¢",
-                InterviewerType.Casual => "ÀÏ»óÀû ´ëÈ­ ¸éÁ¢",
+                InterviewerType.Intensive => "ì§ë¬´ ê¸°ë°˜ ì‹¬í™” ë©´ì ‘",
+                InterviewerType.Casual => "ì¼ìƒì  ëŒ€í™” ë©´ì ‘",
                 _ => type.ToString()
             };
         }
