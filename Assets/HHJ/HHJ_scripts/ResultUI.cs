@@ -1,6 +1,10 @@
 ﻿using HJS;
 using InterviewDb;
 using InterviewDb.Models;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,27 +15,32 @@ namespace ResultUI.Scripts
     {
         [Header("--- 대화 기록 ---")]
         [SerializeField] private TextMeshProUGUI conversationLogText;
+        [SerializeField] private ScrollRect conversationScrollRect;
 
         [Header("--- [음성 영역] UI 연결 ---")]
-        [SerializeField] private TextMeshProUGUI voiceResultText;       // 음성 평가 결과
-        [SerializeField] private TextMeshProUGUI voiceImprovementText;  // 음성 개선 사항
+        [SerializeField] private TextMeshProUGUI voiceResultText;
+        [SerializeField] private TextMeshProUGUI voiceImprovementText;
 
         [Header("--- [내용 영역] UI 연결 ---")]
-        [SerializeField] private TextMeshProUGUI contentResultText;     // 내용 평가 결과
-        [SerializeField] private TextMeshProUGUI contentImprovementText;// 내용 개선 사항
+        [SerializeField] private TextMeshProUGUI contentResultText;
+        [SerializeField] private TextMeshProUGUI contentImprovementText;
 
         [Header("--- [태도 영역] UI 연결 ---")]
-        [SerializeField] private TextMeshProUGUI attitudeResultText;    // 태도 평가 결과
-        [SerializeField] private TextMeshProUGUI attitudeImprovementText; // 태도 개선 사항
+        [SerializeField] private TextMeshProUGUI attitudeResultText;
+        [SerializeField] private TextMeshProUGUI attitudeImprovementText;
 
         [Header("--- 평가 결과 ---")]
         [SerializeField] private TextMeshProUGUI evaluationResultText;
 
-        [Header("--- [세로 막대 차트 Image 연결] ---")]
-        [Tooltip("Image Type: Filled / Fill Method: Vertical / Fill Origin: Bottom 설정 필수!")]
-        [SerializeField] private Image voiceBarFill;    // 음성 영역 막대 Image
-        [SerializeField] private Image contentBarFill;  // 내용 영역 막대 Image
-        [SerializeField] private Image attitudeBarFill; // 태도 영역 막대 Image
+        [Header("--- [막대 차트 연결] ---")]
+        [SerializeField] private Image voiceBarFill;
+        [SerializeField] private Image contentBarFill;
+        [SerializeField] private Image attitudeBarFill;
+
+        [Header("--- [막대 차트 점수 텍스트 연결] ---")]
+        [SerializeField] private TextMeshProUGUI voiceScoreText;
+        [SerializeField] private TextMeshProUGUI contentScoreText;
+        [SerializeField] private TextMeshProUGUI attitudeScoreText;
 
         [Header("--- [테스트용 옵션] ---")]
         [SerializeField] private bool useDummyTest = false;
@@ -39,19 +48,16 @@ namespace ResultUI.Scripts
         [Range(0f, 5f)][SerializeField] private float testContentScore = 3.5f;
         [Range(0f, 5f)][SerializeField] private float testAttitudeScore = 4.8f;
 
-        private const float MAX_SCORE = 5.0f; // 만점 기준
+        private const float MAX_SCORE = 5.0f;
 
         private void Start()
         {
-
-            // 피드백 목록에서 특정 결과 항목을 선택하여 클릭하고 넘어온 경우
             if (FeedbackManager.Instance != null && FeedbackManager.Instance.CurrentSelectedFeedback != null)
             {
                 LoadSelectedData();
             }
             else
             {
-                // 면접 종료 직후 최신 DB/캐시 결과 로드
                 LoadLatestDbResult();
             }
         }
@@ -65,18 +71,15 @@ namespace ResultUI.Scripts
         {
             InterviewManager.OnEvaluationReceived -= HandleEvaluationReceived;
         }
+
         private void OnValidate()
         {
-            // Play 모드가 아닐 때도 Inspector 슬라이더를 움직이면 즉시 차트에 반영
             if (useDummyTest)
             {
                 ApplyChartScores(testVoiceScore, testContentScore, testAttitudeScore);
             }
         }
 
-        /// <summary>
-        /// 가로 막대 차트 fillAmount 적용 함수 (0.0 ~ 1.0, 왼쪽에서 오른쪽으로 채워짐)
-        /// </summary>
         public void ApplyChartScores(float voiceScore, float contentScore, float attitudeScore)
         {
             if (voiceBarFill != null)
@@ -87,11 +90,17 @@ namespace ResultUI.Scripts
 
             if (attitudeBarFill != null)
                 attitudeBarFill.fillAmount = Mathf.Clamp01(attitudeScore / MAX_SCORE);
+
+            if (voiceScoreText != null)
+                voiceScoreText.text = $"[{voiceScore:F1}/5]";
+
+            if (contentScoreText != null)
+                contentScoreText.text = $"[{contentScore:F1}/5]";
+
+            if (attitudeScoreText != null)
+                attitudeScoreText.text = $"[{attitudeScore:F1}/5]";
         }
 
-        /// <summary>
-        /// InterviewDbManager에서 최신 세션 결과(SessionReportRow)를 가져와 UI에 표시
-        /// </summary>
         private void LoadLatestDbResult()
         {
             if (InterviewDbManager.Instance == null)
@@ -113,9 +122,6 @@ namespace ResultUI.Scripts
             }
         }
 
-        /// <summary>
-        /// FeedbackManager에서 선택된 항목 로드
-        /// </summary>
         private void LoadSelectedData()
         {
             var selectedFeedback = FeedbackManager.Instance.CurrentSelectedFeedback;
@@ -126,7 +132,6 @@ namespace ResultUI.Scripts
                 return;
             }
 
-            // DB에서 SessionId가 정확히 일치하는 레코드 검색
             if (InterviewDbManager.Instance != null)
             {
                 var allReports = InterviewDbManager.Instance.GetAllSessionReports();
@@ -146,52 +151,100 @@ namespace ResultUI.Scripts
                 DisplayReportData(selectedFeedback);
             }
 
-            // 다음 면접 종료 시 기존 선택 정보가 남지 않도록 초기화
             FeedbackManager.Instance.CurrentSelectedFeedback = null;
         }
 
-        /// <summary>
-        /// SessionReportRow DB 모델을 UI 텍스트 및 차트에 매핑
-        /// </summary>
+        private string FormatConversationLog(string rawJson)
+        {
+            if (string.IsNullOrEmpty(rawJson))
+                return "대화 기록이 없습니다.";
+
+            try
+            {
+                var dialogueList = JsonConvert.DeserializeObject<List<Dictionary<string, string>>>(rawJson);
+
+                if (dialogueList == null || dialogueList.Count == 0)
+                {
+                    return rawJson;
+                }
+
+                StringBuilder sb = new StringBuilder();
+
+                foreach (var entry in dialogueList)
+                {
+                    string speaker = entry.ContainsKey("speaker") ? entry["speaker"] : "";
+                    string text = entry.ContainsKey("text") ? entry["text"] : "";
+
+                    string speakerName = "지원자";
+                    if (speaker.Equals("AI", StringComparison.OrdinalIgnoreCase) ||
+                        speaker.Equals("Model", StringComparison.OrdinalIgnoreCase) ||
+                        speaker.Equals("Interviewer", StringComparison.OrdinalIgnoreCase))
+                    {
+                        speakerName = "면접관";
+                    }
+
+                    string cleanText = text.Replace("\\n", "\n").Trim();
+
+                    sb.AppendLine($"[{speakerName}]");
+                    sb.AppendLine(cleanText);
+                    sb.AppendLine();
+                }
+
+                return sb.ToString().TrimEnd();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Result] 대화 로그 JSON 파싱 오류: {ex.Message}");
+                return rawJson.Replace("\\n", "\n");
+            }
+        }
+
         private void DisplayReportData(SessionReportRow report)
         {
             float vScore = (float)(report.ScoreAudio ?? 0.0);
             float cScore = (float)(report.ScoreContent ?? 0.0);
             float aScore = (float)(report.ScoreAttitude ?? 0.0);
 
-            // 1. 영역별 UI 텍스트 설정
             SetEvaluationUI(
-                vResult: $"[{vScore:F1}/5.0점] {(string.IsNullOrEmpty(report.EvalAudioText) ? "음성 평가 내용이 없습니다." : report.EvalAudioText)}",
+                vResult: string.IsNullOrEmpty(report.EvalAudioText) ? "음성 평가 내용이 없습니다." : report.EvalAudioText,
                 vImprove: string.IsNullOrEmpty(report.AdviceAudioText) ? "개선 조언이 없습니다." : report.AdviceAudioText,
 
-                cResult: $"[{cScore:F1}/5.0점] {(string.IsNullOrEmpty(report.EvalContentText) ? "답변 내용 평가가 없습니다." : report.EvalContentText)}",
+                cResult: string.IsNullOrEmpty(report.EvalContentText) ? "답변 내용 평가가 없습니다." : report.EvalContentText,
                 cImprove: string.IsNullOrEmpty(report.AdviceContentText) ? "개선 조언이 없습니다." : report.AdviceContentText,
 
-                aResult: $"[{aScore:F1}/5.0점] {(string.IsNullOrEmpty(report.SummaryText) ? "태도 평가 결과가 없습니다." : report.SummaryText)}",
+                aResult: string.IsNullOrEmpty(report.SummaryText) ? "태도 평가 결과가 없습니다." : report.SummaryText,
                 aImprove: string.IsNullOrEmpty(report.AdviceText) ? "개선 조언이 없습니다." : report.AdviceText
             );
 
-            // 2. 종합 평가 결과 텍스트 (TotalScore 존재 시)
             if (evaluationResultText != null)
             {
                 double total = report.TotalScore ?? ((vScore + cScore + aScore) / 3.0);
                 evaluationResultText.text = $"최종 종합 점수: {total:F1} / 5.0";
             }
 
-            // 3. 막대 차트 반영
             ApplyChartScores(vScore, cScore, aScore);
 
-            // 4. 대화 기록 표시 (DB ConversationLog 우선 사용)
             if (conversationLogText != null)
             {
                 if (!string.IsNullOrEmpty(report.ConversationLog))
                 {
-                    conversationLogText.text = report.ConversationLog;
+                    SetLogTextAndResetScroll(FormatConversationLog(report.ConversationLog));
                 }
                 else
                 {
                     ShowConversationLog();
                 }
+            }
+        }
+
+        private void SetLogTextAndResetScroll(string text)
+        {
+            conversationLogText.text = text;
+
+            if (conversationScrollRect != null)
+            {
+                Canvas.ForceUpdateCanvases();
+                conversationScrollRect.verticalNormalizedPosition = 1.0f;
             }
         }
 
@@ -215,16 +268,13 @@ namespace ResultUI.Scripts
             if (attitudeImprovementText != null) attitudeImprovementText.text = aImprove;
         }
 
-        /// <summary>
-        /// Gemini 인메모리 대화 히스토리 파싱 로직 (DB ConversationLog 미존재 시 사용)
-        /// </summary>
         private void ShowConversationLog()
         {
             if (conversationLogText == null) return;
 
             if (UnityAndGeminiV3.Instance == null)
             {
-                conversationLogText.text = "대화 기록이 없습니다.";
+                SetLogTextAndResetScroll("대화 기록이 없습니다.");
                 return;
             }
 
@@ -232,7 +282,7 @@ namespace ResultUI.Scripts
 
             if (history == null || history.Length == 0)
             {
-                conversationLogText.text = "대화 기록이 없습니다.";
+                SetLogTextAndResetScroll("대화 기록이 없습니다.");
                 return;
             }
 
@@ -261,24 +311,13 @@ namespace ResultUI.Scripts
                 log += $"[{speaker}]\n{text}\n\n";
             }
 
-            conversationLogText.text = string.IsNullOrEmpty(log)
-                ? "대화 기록이 없습니다."
-                : log;
+            SetLogTextAndResetScroll(string.IsNullOrEmpty(log) ? "대화 기록이 없습니다." : log);
         }
 
         public void MainBtn()
         {
             InterviewManager.Instance.ResetInterview();
             GameManager.Instance.LoadTitleScene();
-        }
-
-        private void Update()
-        {
-            // Play 모드 중 Inspector 슬라이더를 움직이면 실시간 반영
-            if (useDummyTest)
-            {
-                ApplyChartScores(testVoiceScore, testContentScore, testAttitudeScore);
-            }
         }
     }
 }
