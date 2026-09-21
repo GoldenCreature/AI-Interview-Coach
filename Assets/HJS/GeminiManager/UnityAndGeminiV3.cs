@@ -721,6 +721,16 @@ namespace HJS
                 if (www.result != UnityWebRequest.Result.Success)
                 {
                     Debug.LogError($"[GeminiManager] 종합 평가 요청 실패: {www.error}");
+                    Debug.LogError($"[GeminiManager] HTTP 상태 코드: {www.responseCode}");
+
+                    // 400: 잘못된 요청 (아무 문자나 입력한 경우)
+                    // 403: API 키 인증 실패
+                    if (www.responseCode == 400 || www.responseCode == 403)
+                    {
+                        Debug.LogWarning("[GeminiManager] 잘못된 API 키 → Result 씬 직접 이동");
+                        GameManager.Instance.LoadResultScene();
+                        yield break; 
+                    }
                 }
                 else
                 {
