@@ -148,8 +148,8 @@ namespace InterviewDb
         /// </summary>
         public bool SaveInterviewResult(
             int sessionId,
-            double? scoreAudio, string evalAudioText, string adviceAudioText,
-            double? scoreContent, string evalContentText, string adviceContentText,
+            int? scoreAudio, string evalAudioText, string adviceAudioText,
+            int? scoreContent, string evalContentText, string adviceContentText,
             string conversationLogJson,
             int customDurationSeconds = -1)
         {
@@ -228,7 +228,7 @@ namespace InterviewDb
         /// <summary>
         /// 미디어파이프 태도 점수(0~5점) 및 개선 조언/평가 텍스트 적재
         /// </summary>
-        public bool SaveFaceEvaluation(int sessionId, double scoreAttitude, string adviceAttitudeText, string evalAttitudeText = null)
+        public bool SaveFaceEvaluation(int sessionId, int scoreAttitude, string adviceAttitudeText, string evalAttitudeText = null)
         {
             int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
             if (targetId <= 0) return false;
@@ -260,7 +260,7 @@ namespace InterviewDb
 
                     _connection.Execute(sql, targetId, scoreAttitude, adviceAttitudeText, evalAttitudeText);
                     success = true;
-                    Debug.Log($"[InterviewDbManager] 세션 {targetId} 태도 점수({scoreAttitude:F1}) 적재 완료");
+                    Debug.Log($"[InterviewDbManager] 세션 {targetId} 태도 점수({scoreAttitude}점) 적재 완료");
                 }
                 catch (Exception ex)
                 {
@@ -274,7 +274,7 @@ namespace InterviewDb
         /// <summary>
         /// 외부 모듈에서 계산된 최종 종합 점수(total_score)를 DB와 캐시에 저장
         /// </summary>
-        public bool SetTotalScore(int sessionId, double totalScore)
+        public bool SetTotalScore(int sessionId, int totalScore)
         {
             int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
             if (targetId <= 0) return false;
@@ -291,7 +291,7 @@ namespace InterviewDb
                 {
                     int affected = _connection.Execute("UPDATE Session_Result SET total_score = ? WHERE session_id = ?;", totalScore, targetId);
                     success = affected > 0;
-                    Debug.Log($"[InterviewDbManager] 세션 {targetId} 종합 점수({totalScore:F1}) 갱신 완료");
+                    Debug.Log($"[InterviewDbManager] 세션 {targetId} 종합 점수({totalScore}점) 갱신 완료");
                 }
                 catch (Exception ex)
                 {

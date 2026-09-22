@@ -38,7 +38,7 @@ public class DbDirectTester : MonoBehaviour
 
         Debug.Log("✅ [테스트 완료] DB에 더미 데이터 적재가 완료되었습니다!");
     }
-    */
+    
 
     private void Awake()
     {
@@ -72,4 +72,5 @@ public class DbDirectTester : MonoBehaviour
 
         Debug.Log("✅ [DbDirectTester] DB에 실제 테스트 데이터 2건 적재 완료");
     }
+    */
 }

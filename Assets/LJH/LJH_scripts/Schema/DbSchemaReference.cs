@@ -38,18 +38,18 @@
  컬럼명                  타입      제약 조건                          설명
  --------------------------------------------------------------------------------
  session_id              INTEGER   PK, FK→Interview_Session(CASCADE)  세션 ID 공유
- score_audio             REAL      NULL                               음성 점수
+ score_audio             INTEGER   NULL                               음성 점수 (정수) ★ REAL -> INTEGER
  eval_audio_text         TEXT      NULL                               음성 평가 결과
  advice_audio_text       TEXT      NULL                               음성 개선사항
- score_content           REAL      NULL                               내용 점수
+ score_content           INTEGER   NULL                               내용 점수 (정수) ★ REAL -> INTEGER
  eval_content_text       TEXT      NULL                               내용 평가 결과
  advice_content_text     TEXT      NULL                               내용 개선사항
- score_attitude          REAL      NULL                               태도 점수 (단일 점수만, 전용 텍스트 컬럼 없음)
- total_score             REAL      NULL                               종합 점수 ※자동계산 안 됨, 직접 SetTotalScore 호출 필요
- summary_text            TEXT      NULL                               공용 총평
- advice_text             TEXT      NULL                               공용 개선 가이드 (표정 코멘트 "[표정] ..." 포함)
- created_at              TEXT      NOT NULL DEFAULT (localtime)       결과 저장 일시
- version                 INTEGER   NOT NULL DEFAULT 1                 낙관적 동시성 제어용 (자동 증가)
+ score_attitude          INTEGER   NULL                               태도 점수 (정수) ★ REAL -> INTEGER
+ total_score             INTEGER   NULL                               종합 점수 (정수) ★ REAL -> INTEGER
+ summary_text            TEXT      NULL                               공용 총평 (태도 평가 결과 겸용)
+ advice_text             TEXT      NULL                               공용 개선 가이드 (태도 개선 사항 겸용)
+ created_at              TEXT      NOT NULL DEFAULT (localtime)        결과 저장 일시
+ version                 INTEGER   NOT NULL DEFAULT 1                  낙관적 동시성 제어용 (자동 증가)
 
  ⚠ App_Setting 테이블 자체가 없음 (완전히 제거됨)
  ⚠ total_score 자동 계산 트리거 없음 (누군가 3개 영역 점수를 합산해서 SetTotalScore로 직접 저장해야 함)

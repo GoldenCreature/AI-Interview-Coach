@@ -62,14 +62,14 @@ namespace InterviewDb.Core
             // 표정 관련 코멘트는 기존 summary_text/advice_text(공용)에 계속 누적됨.
             @"CREATE TABLE IF NOT EXISTS Session_Result (
                 session_id            INTEGER PRIMARY KEY,
-                score_audio           REAL    NULL,
+                score_audio           INTEGER NULL, -- REAL -> INTEGER
                 eval_audio_text       TEXT    NULL,
                 advice_audio_text     TEXT    NULL,
-                score_content         REAL    NULL,
+                score_content         INTEGER NULL, -- REAL -> INTEGER
                 eval_content_text     TEXT    NULL,
                 advice_content_text   TEXT    NULL,
-                score_attitude        REAL    NULL,
-                total_score           REAL    NULL,
+                score_attitude        INTEGER NULL, -- REAL -> INTEGER
+                total_score           INTEGER NULL, -- REAL -> INTEGER
                 summary_text          TEXT    NULL,
                 advice_text           TEXT    NULL,
                 created_at            TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),

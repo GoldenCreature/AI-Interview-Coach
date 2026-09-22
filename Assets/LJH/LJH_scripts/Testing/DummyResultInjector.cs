@@ -26,6 +26,7 @@ namespace InterviewDb.Testing
 {
     public class DummyResultInjector : MonoBehaviour
     {
+        /*
         [Header("주입할 더미 값 (Inspector에서 수정 가능)")]
         public string jobCategory = "마케팅";
         public string interviewType = "일반";
@@ -76,5 +77,6 @@ namespace InterviewDb.Testing
                 Debug.LogWarning("[DummyResultInjector] 방금 저장한 세션을 다시 조회하지 못했습니다.");
             }
         }
+        */
     }
 }
