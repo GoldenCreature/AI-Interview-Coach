@@ -62,6 +62,15 @@ namespace PlayUI.Scripts
 
         public void ResultBtn()
         {
+            // API 키 없음 → Result 씬 직접 이동
+            if (string.IsNullOrEmpty(SettingsManager.Instance.GeminiApiKey))
+            {
+                Debug.LogWarning("[Play] API 키 없음 → Result 씬 직접 이동");
+                GameManager.Instance.LoadResultScene();
+                return;
+            }
+
+            // API 키 있음 → 기존 흐름대로
             InterviewManager.Instance.EndInterview();
         }
 

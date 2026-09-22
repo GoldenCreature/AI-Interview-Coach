@@ -177,6 +177,12 @@ public class fass : MonoBehaviour
             runner.OnResultOutput += HandleResult;
         else
             Debug.LogWarning("[fass] runner가 인스펙터에 연결되지 않았습니다.");
+
+        // InterviewManager의 면접 종료 요청 이벤트 구독
+        // 면접이 끝나면 HandleInterviewEnded()가 자동으로 실행됨
+        // OnInterviewEndRequested는 멀티캐스트 이벤트라
+        // GeminiManager, Play.cs와 함께 동시에 구독 가능
+        HJS.InterviewManager.OnInterviewEndRequested += HandleInterviewEnded;
     }
 
     void Start()
@@ -193,6 +199,10 @@ public class fass : MonoBehaviour
     {
         if (runner != null)
             runner.OnResultOutput -= HandleResult;
+
+        // 씬 전환 시 오브젝트 파괴 전 구독 해제
+        // 해제 안 하면 다음 면접에서 중복 실행될 수 있음
+        HJS.InterviewManager.OnInterviewEndRequested -= HandleInterviewEnded;
     }
 
     private void HandleResult(FaceLandmarkerResult result)
@@ -213,11 +223,14 @@ public class fass : MonoBehaviour
         OnFaceLandmarksDetected(landmarksList);
     }
 
+    // 더 이상 사용 안 함(주석처리 했으니 확인 요망 검증이후 삭제)
+    /*
     [Header("저장 간격")]
     [Tooltip("점수를 저장할 최소 간격(분 단위)")]
     public float logIntervalMinutes = 3f;
 
     private DateTime lastLoggedTime = DateTime.MinValue;
+    */
 
     public void OnFaceLandmarksDetected(List<Vector3> landmarks)
     {
@@ -265,6 +278,11 @@ public class fass : MonoBehaviour
             }
         }
 
+        // 버퍼 누적만 하고 끝
+        // 최종 계산 및 DB 저장은
+        // 면접 종료 시 CalculateFinalScoreAndSave()에서 처리
+        // (주석처리 했으니 확인 요망 검증이후 삭제)
+        /*
         DateTime now = DateTime.Now;
         if ((now - lastLoggedTime).TotalMinutes < logIntervalMinutes)
         {
@@ -323,6 +341,8 @@ public class fass : MonoBehaviour
 
         // ── 5) 태도 총점 = 세 영역 점수(각 0~5)의 합을 0~5점으로 정규화 = 평균
         float attitudeScore = Round1((faceScoreRounded + gazeScoreRounded + angleScoreRounded) / 3f);
+        // 태도 총점 = 3개 영역 평균 후 정수로 반올림
+        attitudeScore = Mathf.Clamp(attitudeScore, 0, 5);
         latestAttitudeScore = attitudeScore;
 
         // ── 6) 하위 호환 필드에도 반영 (기존에 latestGrade/latestEvaluationXXX 를 참조하는 코드가 있을 경우 대비)
@@ -345,6 +365,7 @@ public class fass : MonoBehaviour
 
         // 2. InterviewDbManager를 통한 DB 직접 저장 연동
         SaveToDatabase(attitudeScore, combinedNotes, combinedSummary);
+        */
     }
 
     /// <summary>
@@ -361,7 +382,7 @@ public class fass : MonoBehaviour
 
         // currentSessionId 자동 반영 (-1 지정)
         bool success = dbManager.SaveFaceEvaluation(
-            sessionId: -1,
+            sessionId: InterviewDbManager.Instance.CurrentSessionId,
             scoreAttitude: (double)score,
             adviceAttitudeText: adviceText,
             evalAttitudeText: summaryText
@@ -369,7 +390,7 @@ public class fass : MonoBehaviour
 
         if (success)
         {
-            Debug.Log($"[fass] DB 저장 성공: 태도점수({score:F1}/5.0)");
+            Debug.Log($"[fass] DB 저장 성공: 태도점수({score}/5.0)");
         }
         else
         {
@@ -613,13 +634,13 @@ public class fass : MonoBehaviour
         var improvementNotes = new StringBuilder();
 
         if (angry >= 2.5f)
-            improvementNotes.AppendLine($"- 미간/눈썹에 긴장이 감지됩니다 ({angry:F1}/5). 질문을 들을 때 표정을 편하게 풀어보세요.");
+            improvementNotes.AppendLine("- 미간/눈썹에 긴장이 감지됩니다. 질문을 들을 때 표정을 편하게 풀어보세요.");
         if (surprise >= 3f)
-            improvementNotes.AppendLine($"- 예상 밖 반응이 자주 감지됩니다 ({surprise:F1}/5). 답변 전 잠깐의 여유를 가져보세요.");
+            improvementNotes.AppendLine("- 예상 밖 반응이 자주 감지됩니다. 답변 전 잠깐의 여유를 가져보세요.");
         if (smile < 0.5f)
-            improvementNotes.AppendLine($"- 표정이 다소 경직되어 있습니다 ({smile:F1}/5). 자연스러운 미소를 시도해보세요.");
+            improvementNotes.AppendLine("- 표정이 다소 경직되어 있습니다. 자연스러운 미소를 시도해보세요.");
         if (smile > 4f)
-            improvementNotes.AppendLine($"- 미소가 다소 과도하게 유지되고 있습니다 ({smile:F1}/5). 상황에 맞는 톤 조절이 필요할 수 있습니다.");
+            improvementNotes.AppendLine("- 미소가 다소 과도하게 유지되고 있습니다. 상황에 맞는 톤 조절이 필요할 수 있습니다.");
 
         return (grade, summary, detail, improvementNotes.ToString(), normalizedScore);
     }
@@ -660,7 +681,7 @@ public class fass : MonoBehaviour
 
         var notes = new StringBuilder();
         if (gazeScore < 3.5f)
-            notes.AppendLine($"- 시선이 카메라에서 벗어나는 경우가 있습니다 ({gazeScore:F1}/5). 답변 중에도 카메라 렌즈를 바라보는 연습을 해보세요.");
+            notes.AppendLine("- 시선이 카메라에서 벗어나는 경우가 있습니다. 답변 중에도 카메라 렌즈를 바라보는 연습을 해보세요.");
         if (gazeScore < 2.0f)
             notes.AppendLine("- 생각을 정리할 때 시선을 위/아래로 피하기보다, 잠깐 멈춘 뒤 카메라를 다시 응시하는 습관을 들여보세요.");
 
@@ -703,10 +724,101 @@ public class fass : MonoBehaviour
 
         var notes = new StringBuilder();
         if (angleScore < 3.5f)
-            notes.AppendLine($"- 고개 방향이 흔들립니다 ({angleScore:F1}/5, 평균 좌우회전 {avgYaw:F2} / 상하회전 {avgPitch:F2}). 카메라를 정면으로 응시하도록 자세를 교정해보세요.");
+            notes.AppendLine("- 고개 방향이 흔들립니다. 카메라를 정면으로 응시하도록 자세를 교정해보세요.");
         if (angleScore < 2.0f)
             notes.AppendLine("- 답변 중 고개가 자주 돌아갑니다. 모니터나 카메라 위치를 눈높이에 맞추면 자연스럽게 정면을 유지하기 쉽습니다.");
 
         return (summary, detail, notes.ToString());
+    }
+
+    // -----------------------------------------------
+    // 면접 종료 이벤트 수신 시 자동 호출
+    // OnInterviewEndRequested 이벤트 구독 함수
+    // GeminiManager의 비동기 평가 요청보다 먼저 동기로 실행됨
+    // → 씬 전환 전 DB 저장 보장
+    // -----------------------------------------------
+    private void HandleInterviewEnded(HJS.InterviewResultData resultData)
+    {
+        Debug.Log("[fass] 면접 종료 감지 → 최종 태도 점수 계산 시작");
+        CalculateFinalScoreAndSave();
+    }
+
+    // -----------------------------------------------
+    // 면접 종료 시 최종 태도 점수 계산 + DB 저장
+    // 기존 OnFaceLandmarksDetected()는 3분 간격으로만 저장하기 때문에
+    // 면접 종료 시점에 즉시 계산하는 별도 메서드가 필요함
+    // 현재까지 수집된 버퍼 데이터를 기반으로 최종 점수 산출
+    // -----------------------------------------------
+    public void CalculateFinalScoreAndSave()
+    {
+        // 버퍼에 데이터가 없으면 측정이 안 된 것
+        // → 저장 스킵 (빈 데이터 DB 저장 방지)
+        if (smileBuffer.Count == 0 && angleScoreBuffer.Count == 0)
+        {
+            Debug.LogWarning("[fass] 측정 데이터 없음 → 카메라 미연결 메시지 저장");
+
+            // 카메라 미연결 또는 얼굴 미감지 시
+            // 태도 점수 0점 + 안내 메시지 DB 저장
+            // → Result 씬에서 사용자가 확인 가능
+            SaveToDatabase(
+                score: 0,
+                adviceText: "면접 시 카메라를 연결하고 얼굴이 화면에 잘 보이도록 위치를 조정해주세요.",
+                summaryText: "카메라 미연결 또는 얼굴이 감지되지 않아 태도 점수를 측정할 수 없습니다."
+            );
+            return;
+        }
+
+        // 현재까지 수집된 버퍼의 평균값으로 최종 점수 계산
+        float smileScore = Average(smileBuffer);
+        float surpriseScore = Average(surpriseBuffer);
+        float angryScore = Average(angryBuffer);
+
+        // 홍채 미검출 시 시선 점수는 기본값 5점 처리
+        float gazeScoreAvg = gazeBuffer.Count > 0 ? Average(gazeBuffer) : 5f;
+        float angleScoreAvg = Average(angleScoreBuffer);
+        float avgYaw = Average(yawRatioBuffer);
+        float avgPitch = Average(pitchRatioBuffer);
+
+        // 3개 영역 평가 실행
+        // 표정: 미소/놀람/찡그림 조합으로 판단
+        // 시선: 눈동자가 카메라 정면을 얼마나 응시했는지
+        // 각도: 고개가 얼마나 정면을 유지했는지
+        var (faceGrade, faceSummary, faceDetail, faceNotes, faceScore) =
+            EvaluateFaceExpression(smileScore, surpriseScore, angryScore);
+        var (gazeSummary, gazeDetail, gazeNotes) =
+            EvaluateGaze(gazeScoreAvg);
+        var (angleSummary, angleDetail, angleNotes) =
+            EvaluateAngle(angleScoreAvg, avgYaw, avgPitch);
+
+        // 소수 첫째자리로 반올림
+        float faceScoreRounded = Round1(faceScore);
+        float gazeScoreRounded = Round1(gazeScoreAvg);
+        float angleScoreRounded = Round1(angleScoreAvg);
+
+        // 태도 총점 = 3개 영역 평균 후 정수로 반올림 (각 0~5점)
+        int attitudeScore = Mathf.Clamp(
+            Mathf.RoundToInt(
+                (faceScoreRounded + gazeScoreRounded + angleScoreRounded) / 3f),
+            0, 5);
+
+        // Inspector에서 실시간 확인 가능하도록 퍼블릭 필드에 반영
+        latestAttitudeScore = (float)attitudeScore;
+        latestGrade = faceGrade;
+        latestEvaluationScore = (float)attitudeScore;
+
+        // 결과 문자열 조합
+        string combinedSummary = $"[표정] {faceSummary} / [시선] {gazeSummary} / [얼굴각도] {angleSummary}";
+        string combinedDetail = $"표정: {faceDetail}\n시선: {gazeDetail}\n얼굴각도: {angleDetail}";
+        string combinedNotes = faceNotes + gazeNotes + angleNotes;
+
+        latestEvaluationSummary = combinedSummary;
+        latestEvaluationDetail = combinedDetail;
+        latestImprovementNotes = combinedNotes;
+
+        Debug.Log($"[fass] 최종 태도 점수: {attitudeScore}/5");
+
+        // InterviewDbManager를 통해 DB에 최종 저장
+        // sessionId: -1 → 현재 활성 세션 자동 반영
+        SaveToDatabase((float)attitudeScore, combinedNotes, combinedSummary);
     }
 }
