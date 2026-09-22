@@ -223,11 +223,14 @@ public class fass : MonoBehaviour
         OnFaceLandmarksDetected(landmarksList);
     }
 
+    // 더 이상 사용 안 함(주석처리 했으니 확인 요망 검증이후 삭제)
+    /*
     [Header("저장 간격")]
     [Tooltip("점수를 저장할 최소 간격(분 단위)")]
     public float logIntervalMinutes = 3f;
 
     private DateTime lastLoggedTime = DateTime.MinValue;
+    */
 
     public void OnFaceLandmarksDetected(List<Vector3> landmarks)
     {
@@ -275,6 +278,11 @@ public class fass : MonoBehaviour
             }
         }
 
+        // 버퍼 누적만 하고 끝
+        // 최종 계산 및 DB 저장은
+        // 면접 종료 시 CalculateFinalScoreAndSave()에서 처리
+        // (주석처리 했으니 확인 요망 검증이후 삭제)
+        /*
         DateTime now = DateTime.Now;
         if ((now - lastLoggedTime).TotalMinutes < logIntervalMinutes)
         {
@@ -357,6 +365,7 @@ public class fass : MonoBehaviour
 
         // 2. InterviewDbManager를 통한 DB 직접 저장 연동
         SaveToDatabase(attitudeScore, combinedNotes, combinedSummary);
+        */
     }
 
     /// <summary>
@@ -746,7 +755,16 @@ public class fass : MonoBehaviour
         // → 저장 스킵 (빈 데이터 DB 저장 방지)
         if (smileBuffer.Count == 0 && angleScoreBuffer.Count == 0)
         {
-            Debug.LogWarning("[fass] 측정 데이터 없음 → 최종 저장 스킵");
+            Debug.LogWarning("[fass] 측정 데이터 없음 → 카메라 미연결 메시지 저장");
+
+            // 카메라 미연결 또는 얼굴 미감지 시
+            // 태도 점수 0점 + 안내 메시지 DB 저장
+            // → Result 씬에서 사용자가 확인 가능
+            SaveToDatabase(
+                score: 0,
+                adviceText: "면접 시 카메라를 연결하고 얼굴이 화면에 잘 보이도록 위치를 조정해주세요.",
+                summaryText: "카메라 미연결 또는 얼굴이 감지되지 않아 태도 점수를 측정할 수 없습니다."
+            );
             return;
         }
 
