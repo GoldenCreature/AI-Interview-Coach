@@ -13,10 +13,13 @@ namespace InterviewDb.Core
 {
     public static class FaceEvaluationWriter
     {
+        /*
         /// <summary>[Deprecated] InterviewResultRepository.SaveFaceEvaluation(...)을 대신 사용하여야 함.</summary>
         public static void Save(SQLiteConnection conn, int sessionId, double evaluationScore, string evaluationDetail)
         {
             InterviewResultRepository.SaveFaceEvaluation(conn, sessionId, evaluationScore, evaluationDetail);
         }
+        */
     }
+
 }

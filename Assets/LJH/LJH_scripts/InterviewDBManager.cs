@@ -104,7 +104,7 @@ namespace InterviewDb
         {
             CurrentSessionId = -1;
             _latestCachedReport = null;
-            _sessionStartTime = DateTime.UtcNow;
+            _sessionStartTime = DateTime.Now;
 
             // 빈 문자열 방어: 공백이 들어오면 기본값 지정
             _currentJobCategory = string.IsNullOrWhiteSpace(jobCategory) ? "IT" : jobCategory;
@@ -132,9 +132,9 @@ namespace InterviewDb
 
             ExecuteSafe(() =>
             {
-                string endTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+                string endTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 int duration = _sessionStartTime != default
-                    ? (int)Math.Max(0, (DateTime.UtcNow - _sessionStartTime).TotalSeconds)
+                    ? (int)Math.Max(0, (DateTime.Now - _sessionStartTime).TotalSeconds)
                     : 0;
 
                 _connection.Execute("UPDATE Interview_Session SET end_time = ?, duration_seconds = ?, session_status = 'Aborted' WHERE session_id = ?;", endTime, duration, targetId);
@@ -156,10 +156,10 @@ namespace InterviewDb
             int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
             if (targetId <= 0) return false;
 
-            string endTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            string endTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             int duration = customDurationSeconds >= 0
                 ? customDurationSeconds
-                : (_sessionStartTime != default ? (int)Math.Max(0, (DateTime.UtcNow - _sessionStartTime).TotalSeconds) : 0);
+                : (_sessionStartTime != default ? (int)Math.Max(0, (DateTime.Now - _sessionStartTime).TotalSeconds) : 0);
 
             // JSON 빈 문자열("") 유입 시 SQLite json_valid 트리거 크래시 방어 (null 치환)
             string safeLogJson = string.IsNullOrWhiteSpace(conversationLogJson) ? null : conversationLogJson;

@@ -48,7 +48,7 @@ namespace InterviewDb.Core
     /// 팀장님이 Gemini 프롬프트 파싱 결과를 이 형태로 채워서 넘겨주시면 됩니다.
     /// </summary>
     public class InterviewEvaluationInput
-    {
+    {/*
         public int SessionId { get; set; }
 
         public double? ScoreAudio { get; set; }
@@ -180,5 +180,8 @@ namespace InterviewDb.Core
                 "SELECT * FROM View_Session_Report WHERE session_id = ?", sessionId)
                 .FirstOrDefault();
         }
+    */
     }
+        
+        
 }
