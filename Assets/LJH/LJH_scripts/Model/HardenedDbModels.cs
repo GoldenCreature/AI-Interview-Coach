@@ -18,7 +18,7 @@ namespace InterviewDb.Models
         public int SessionId { get; set; }
 
         [Column("score_audio")]
-        public double? ScoreAudio { get; set; }
+        public int? ScoreAudio { get; set; }
 
         [Column("eval_audio_text")]
         public string EvalAudioText { get; set; }
@@ -27,7 +27,7 @@ namespace InterviewDb.Models
         public string AdviceAudioText { get; set; }
 
         [Column("score_content")]
-        public double? ScoreContent { get; set; }
+        public int? ScoreContent { get; set; }
 
         [Column("eval_content_text")]
         public string EvalContentText { get; set; }
@@ -36,11 +36,11 @@ namespace InterviewDb.Models
         public string AdviceContentText { get; set; }
 
         [Column("score_attitude")]
-        public double? ScoreAttitude { get; set; }
+        public int? ScoreAttitude { get; set; }
 
         /// <summary>⚠ 더 이상 DB가 자동 계산하지 않음. InterviewResultRepository.SetTotalScore(...)로 직접 채워줘야 함.</summary>
         [Column("total_score")]
-        public double? TotalScore { get; set; }
+        public int? TotalScore { get; set; }
 
         [Column("summary_text")]
         public string SummaryText { get; set; }

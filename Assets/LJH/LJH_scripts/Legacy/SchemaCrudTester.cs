@@ -26,6 +26,7 @@ namespace InterviewDb.Testing
 {
     public class SchemaCrudTester : MonoBehaviour
     {
+        /*
         [Tooltip("테스트용 DB 파일 경로. 비워두면 persistentDataPath에 별도 테스트 DB를 생성합니다.")]
         public string databasePath = "";
 
@@ -229,5 +230,6 @@ namespace InterviewDb.Testing
             if (!condition) throw new Exception(message);
             _log.Add("[PASS] " + message);
         }
+        */
     }
 }

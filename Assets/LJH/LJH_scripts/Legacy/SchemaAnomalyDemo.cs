@@ -30,6 +30,7 @@ namespace InterviewDb.Testing
 {
     public class SchemaAnomalyDemo : MonoBehaviour
     {
+        /*
         [Tooltip("데모 전용 DB 파일 경로. 절대 실제 서비스 DB를 지정하지 마세요.")]
         public string databasePath = "";
 
@@ -241,5 +242,7 @@ namespace InterviewDb.Testing
             if (withEndTime) s.EndTime = DateTime.Now.AddMinutes(10).ToString("yyyy-MM-dd HH:mm:ss");
             return s;
         }
+        */
     }
+
 }

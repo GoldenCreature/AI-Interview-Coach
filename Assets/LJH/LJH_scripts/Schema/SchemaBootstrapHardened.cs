@@ -42,6 +42,7 @@ namespace InterviewDb.Core
             @"CREATE TABLE IF NOT EXISTS Interview_Session (
                 session_id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 job_category        TEXT    NOT NULL DEFAULT 'IT',
+                interview_type      TEXT    NOT NULL DEFAULT '일상적 대화 면접',
                 session_status      TEXT    NOT NULL DEFAULT 'Completed'
                                     CHECK (session_status IN ('In-Progress', 'Completed', 'Aborted')),
                 end_time            TEXT    NULL,
@@ -61,14 +62,14 @@ namespace InterviewDb.Core
             // 표정 관련 코멘트는 기존 summary_text/advice_text(공용)에 계속 누적됨.
             @"CREATE TABLE IF NOT EXISTS Session_Result (
                 session_id            INTEGER PRIMARY KEY,
-                score_audio           REAL    NULL,
+                score_audio           INTEGER NULL, -- REAL -> INTEGER
                 eval_audio_text       TEXT    NULL,
                 advice_audio_text     TEXT    NULL,
-                score_content         REAL    NULL,
+                score_content         INTEGER NULL, -- REAL -> INTEGER
                 eval_content_text     TEXT    NULL,
                 advice_content_text   TEXT    NULL,
-                score_attitude        REAL    NULL,
-                total_score           REAL    NULL,
+                score_attitude        INTEGER NULL, -- REAL -> INTEGER
+                total_score           INTEGER NULL, -- REAL -> INTEGER
                 summary_text          TEXT    NULL,
                 advice_text           TEXT    NULL,
                 created_at            TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
@@ -83,6 +84,7 @@ namespace InterviewDb.Core
             SELECT
                 s.session_id,
                 s.job_category,
+                s.interview_type, -- [컬럼 매핑]
                 s.session_status,
                 s.end_time,
                 s.duration_seconds,

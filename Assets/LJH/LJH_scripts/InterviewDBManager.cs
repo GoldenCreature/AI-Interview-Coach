@@ -92,6 +92,11 @@ namespace InterviewDb
         // 한종수 팀장 연동 통로 (면접 세션 시작 / 중단 / 음성·내용 결과 적재)
         // ============================================================
 
+
+        // 클래스 상단 필드에 세션 직무/유형 임시 보관 변수 추가
+        private string _currentJobCategory;
+        private string _currentInterviewType;
+
         /// <summary>
         /// 면접 시작 시 호출: 세션 레코드를 생성하고 발급된 ID를 반환 및 보관합니다.
         /// </summary>
@@ -99,16 +104,19 @@ namespace InterviewDb
         {
             CurrentSessionId = -1;
             _latestCachedReport = null;
-            _sessionStartTime = DateTime.UtcNow;
+            _sessionStartTime = DateTime.Now;
+
+            // 빈 문자열 방어: 공백이 들어오면 기본값 지정
+            _currentJobCategory = string.IsNullOrWhiteSpace(jobCategory) ? "IT" : jobCategory;
+            _currentInterviewType = string.IsNullOrWhiteSpace(interviewType) ? "일상적 대화 면접" : interviewType;
 
             ExecuteSafe(() =>
             {
-                string combinedJob = string.IsNullOrEmpty(interviewType) ? jobCategory : $"{jobCategory} ({interviewType})";
-                string sql = "INSERT INTO Interview_Session (job_category, session_status) VALUES (?, 'In-Progress');";
-                _connection.Execute(sql, combinedJob);
+                string sql = "INSERT INTO Interview_Session (job_category, interview_type, session_status) VALUES (?, ?, 'In-Progress');";
+                _connection.Execute(sql, _currentJobCategory, _currentInterviewType);
 
-                CurrentSessionId = _connection.ExecuteScalar<int>("SELECT last_insert_rowid();");
-                Debug.Log($"[InterviewDbManager] 세션 발급 완료 (ID: {CurrentSessionId})");
+                CurrentSessionId = (int)SQLite3.LastInsertRowid(_connection.Handle);
+                Debug.Log($"[InterviewDbManager] 세션 발급 완료 (ID: {CurrentSessionId}, 직무: {_currentJobCategory}, 유형: {_currentInterviewType})");
             });
 
             return CurrentSessionId;
@@ -124,9 +132,9 @@ namespace InterviewDb
 
             ExecuteSafe(() =>
             {
-                string endTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+                string endTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 int duration = _sessionStartTime != default
-                    ? (int)Math.Max(0, (DateTime.UtcNow - _sessionStartTime).TotalSeconds)
+                    ? (int)Math.Max(0, (DateTime.Now - _sessionStartTime).TotalSeconds)
                     : 0;
 
                 _connection.Execute("UPDATE Interview_Session SET end_time = ?, duration_seconds = ?, session_status = 'Aborted' WHERE session_id = ?;", endTime, duration, targetId);
@@ -140,18 +148,18 @@ namespace InterviewDb
         /// </summary>
         public bool SaveInterviewResult(
             int sessionId,
-            double? scoreAudio, string evalAudioText, string adviceAudioText,
-            double? scoreContent, string evalContentText, string adviceContentText,
+            int? scoreAudio, string evalAudioText, string adviceAudioText,
+            int? scoreContent, string evalContentText, string adviceContentText,
             string conversationLogJson,
             int customDurationSeconds = -1)
         {
             int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
             if (targetId <= 0) return false;
 
-            string endTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            string endTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             int duration = customDurationSeconds >= 0
                 ? customDurationSeconds
-                : (_sessionStartTime != default ? (int)Math.Max(0, (DateTime.UtcNow - _sessionStartTime).TotalSeconds) : 0);
+                : (_sessionStartTime != default ? (int)Math.Max(0, (DateTime.Now - _sessionStartTime).TotalSeconds) : 0);
 
             // JSON 빈 문자열("") 유입 시 SQLite json_valid 트리거 크래시 방어 (null 치환)
             string safeLogJson = string.IsNullOrWhiteSpace(conversationLogJson) ? null : conversationLogJson;
@@ -161,6 +169,9 @@ namespace InterviewDb
             {
                 _latestCachedReport = new SessionReportRow { SessionId = targetId };
             }
+            _latestCachedReport.JobCategory = _currentJobCategory;         // [캐시 누락 방지] 직무 보관
+            _latestCachedReport.InterviewType = _currentInterviewType;     // [캐시 누락 방지] 면접 유형 보관
+            _latestCachedReport.SessionStatus = "Completed";
             _latestCachedReport.EndTime = endTime;
             _latestCachedReport.DurationSeconds = duration;
             _latestCachedReport.ScoreAudio = scoreAudio;
@@ -217,7 +228,7 @@ namespace InterviewDb
         /// <summary>
         /// 미디어파이프 태도 점수(0~5점) 및 개선 조언/평가 텍스트 적재
         /// </summary>
-        public bool SaveFaceEvaluation(int sessionId, double scoreAttitude, string adviceAttitudeText, string evalAttitudeText = null)
+        public bool SaveFaceEvaluation(int sessionId, int scoreAttitude, string adviceAttitudeText, string evalAttitudeText = null)
         {
             int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
             if (targetId <= 0) return false;
@@ -249,7 +260,7 @@ namespace InterviewDb
 
                     _connection.Execute(sql, targetId, scoreAttitude, adviceAttitudeText, evalAttitudeText);
                     success = true;
-                    Debug.Log($"[InterviewDbManager] 세션 {targetId} 태도 점수({scoreAttitude:F1}) 적재 완료");
+                    Debug.Log($"[InterviewDbManager] 세션 {targetId} 태도 점수({scoreAttitude}점) 적재 완료");
                 }
                 catch (Exception ex)
                 {
@@ -263,7 +274,7 @@ namespace InterviewDb
         /// <summary>
         /// 외부 모듈에서 계산된 최종 종합 점수(total_score)를 DB와 캐시에 저장
         /// </summary>
-        public bool SetTotalScore(int sessionId, double totalScore)
+        public bool SetTotalScore(int sessionId, int totalScore)
         {
             int targetId = sessionId > 0 ? sessionId : CurrentSessionId;
             if (targetId <= 0) return false;
@@ -280,7 +291,7 @@ namespace InterviewDb
                 {
                     int affected = _connection.Execute("UPDATE Session_Result SET total_score = ? WHERE session_id = ?;", totalScore, targetId);
                     success = affected > 0;
-                    Debug.Log($"[InterviewDbManager] 세션 {targetId} 종합 점수({totalScore:F1}) 갱신 완료");
+                    Debug.Log($"[InterviewDbManager] 세션 {targetId} 종합 점수({totalScore}점) 갱신 완료");
                 }
                 catch (Exception ex)
                 {

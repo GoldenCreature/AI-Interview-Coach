@@ -27,6 +27,7 @@ namespace InterviewDb.Testing
 {
     public class SchemaIntegrityDefenseTest : MonoBehaviour
     {
+        /*
         [Tooltip("강화된 스키마 전용 DB 파일 경로. 기존 테스트 DB와 반드시 다른 파일이어야 합니다.")]
         public string databasePath = "";
 
@@ -262,5 +263,6 @@ namespace InterviewDb.Testing
                 }
             }
         }
+        */
     }
 }

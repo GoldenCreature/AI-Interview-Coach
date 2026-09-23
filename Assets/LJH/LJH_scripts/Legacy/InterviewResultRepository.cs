@@ -1,7 +1,7 @@
 // ============================================================
 // InterviewResultRepository.cs
 // ------------------------------------------------------------
-// 팀 전체가 DB를 건드릴 때 실제로 알아야 할 건 이 파일 하나.
+//
 // Model/Schema/Testing 폴더 내부 구조는 몰라도 되는 부분.
 //
 //   1) InitializeSchema(conn)     — 프로그램 시작 시 딱 한 번
@@ -48,7 +48,7 @@ namespace InterviewDb.Core
     /// 팀장님이 Gemini 프롬프트 파싱 결과를 이 형태로 채워서 넘겨주시면 됩니다.
     /// </summary>
     public class InterviewEvaluationInput
-    {
+    {/*
         public int SessionId { get; set; }
 
         public double? ScoreAudio { get; set; }
@@ -180,5 +180,8 @@ namespace InterviewDb.Core
                 "SELECT * FROM View_Session_Report WHERE session_id = ?", sessionId)
                 .FirstOrDefault();
         }
+    */
     }
+        
+        
 }

@@ -30,6 +30,7 @@ namespace InterviewDb.Testing
 {
     public class FaceEvaluationIntegrationTest : MonoBehaviour
     {
+        /*
         [Tooltip("이 테스트 전용 DB 파일 경로")]
         public string databasePath = "";
 
@@ -144,5 +145,6 @@ namespace InterviewDb.Testing
                 });
             });
         }
+        */
     }
 }

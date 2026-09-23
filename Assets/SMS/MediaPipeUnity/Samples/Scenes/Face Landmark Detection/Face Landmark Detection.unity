@@ -702,6 +702,10 @@ PrefabInstance:
       propertyPath: calibrationKey
       value: 32
       objectReference: {fileID: 0}
+    - target: {fileID: 2016563591691362372, guid: 74b27aa9f19f4a54b877fa310f4dac0c, type: 3}
+      propertyPath: logIntervalMinutes
+      value: 0.05
+      objectReference: {fileID: 0}
     - target: {fileID: 4729462092871287591, guid: 74b27aa9f19f4a54b877fa310f4dac0c, type: 3}
       propertyPath: m_Name
       value: face
