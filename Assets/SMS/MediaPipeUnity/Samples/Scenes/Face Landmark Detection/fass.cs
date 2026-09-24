@@ -383,7 +383,7 @@ public class fass : MonoBehaviour
         // currentSessionId 자동 반영 (-1 지정)
         bool success = dbManager.SaveFaceEvaluation(
             sessionId: InterviewDbManager.Instance.CurrentSessionId,
-            scoreAttitude: (double)score,
+            scoreAttitude: (int)score,
             adviceAttitudeText: adviceText,
             evalAttitudeText: summaryText
         );
