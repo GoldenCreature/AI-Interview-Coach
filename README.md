@@ -1,4 +1,5 @@
-<img width="1408" height="768" alt="AI-Interview-Coach" src="https://github.com/user-attachments/assets/d73c72c3-7516-4d09-8c04-c3e453f456aa" />
+<img width="1672" height="941" alt="AI_Interview_Coach" src="https://github.com/user-attachments/assets/5b9dd364-a67f-45b8-b40a-5b170850d284" />
+
 
 # 🎙️ AI 기반 면접 코칭 시스템
 
@@ -25,7 +26,7 @@
 | TTS (음성합성) | Google Cloud TTS |
 | 로컬 DB | SQLite (gilzoide/unity-sqlite-net) |
 | UI | Unity uGUI |
-| 얼굴 분석 / 시선 감지 | MediaPipe Unity Plugin (테스트 중) |
+| 얼굴 분석 / 시선 감지 | MediaPipe Unity Plugin |
 
 ---
 
