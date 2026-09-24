@@ -575,7 +575,6 @@ MonoBehaviour:
     result: 
     improvement: 
   latestAttitudeScore: 0
-  logIntervalMinutes: 0.05
 --- !u!4 &353575082 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 994985366407176105, guid: 74b27aa9f19f4a54b877fa310f4dac0c, type: 3}
@@ -1605,6 +1604,10 @@ PrefabInstance:
     - target: {fileID: 1461732155162314665, guid: b9055c7b7632b964e8814406903f1957, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2142725485969133881, guid: b9055c7b7632b964e8814406903f1957, type: 3}
+      propertyPath: m_Color.a
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4482376643013773884, guid: b9055c7b7632b964e8814406903f1957, type: 3}
       propertyPath: loadingTextColor.b
