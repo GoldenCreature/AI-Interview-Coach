@@ -44,8 +44,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a312eab5f9f19946b4b8e9d6136078e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  apiKey: 
-  googleServices: {fileID: 0}
   chatHistory: []
-  selectedJob: 0
-  fillerDetector: {fileID: 0}

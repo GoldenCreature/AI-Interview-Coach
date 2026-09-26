@@ -20,13 +20,13 @@ namespace HJS
 
         // 씬 이름 상수
         // 나중에 씬 이름 바뀌면 여기만 수정하면 됨
-        private const string SCENE_TITLE = "Main";
-        private const string SCENE_LOADING = "Loading1";
-        private const string SCENE_INTERVIEW_SETUP = "Interviewer";
-        private const string SCENE_INTERVIEW = "Interview Room";
-        private const string SCENE_SETTING = "Setting";
-        private const string SCENE_FEEDBACK = "FeedBack";
-        private const string SCENE_RESULT = "Result";
+        public const string SCENE_TITLE = "Main";
+        public const string SCENE_LOADING = "Loading1";
+        public const string SCENE_INTERVIEW_SETUP = "Interviewer";
+        public const string SCENE_INTERVIEW = "Interview Room";
+        public const string SCENE_SETTING = "Setting";
+        public const string SCENE_FEEDBACK = "FeedBack";
+        public const string SCENE_RESULT = "Result";
 
         protected override void Awake()
         {
