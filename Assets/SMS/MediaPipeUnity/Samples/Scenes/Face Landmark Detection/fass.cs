@@ -278,94 +278,63 @@ public class fass : MonoBehaviour
             }
         }
 
-        // 버퍼 누적만 하고 끝
-        // 최종 계산 및 DB 저장은
-        // 면접 종료 시 CalculateFinalScoreAndSave()에서 처리
-        // (주석처리 했으니 확인 요망 검증이후 삭제)
-        /*
-        DateTime now = DateTime.Now;
-        if ((now - lastLoggedTime).TotalMinutes < logIntervalMinutes)
-        {
-            return;
-        }
-        lastLoggedTime = now;
+        // ── 3) Inspector 실시간 표시용 업데이트
+        // DB 저장 없이 개발자 확인용으로만 사용
+        // 최종 계산 및 DB 저장은 면접 종료 시 CalculateFinalScoreAndSave()에서 처리
+        if (smileBuffer.Count == 0 && angleScoreBuffer.Count == 0) return;
 
-        // ── 3) 구간 평균 계산
-        float smileScore = Average(smileBuffer);
-        float surpriseScore = Average(surpriseBuffer);
-        float angryScore = Average(angryBuffer);
-        float gazeScoreAvg = gazeBuffer.Count > 0 ? Average(gazeBuffer) : 5f; // 홍채 미검출 시 감점 없이 기본값 처리
-        float angleScoreAvg = Average(angleScoreBuffer);
-        float avgYaw = Average(yawRatioBuffer);
-        float avgPitch = Average(pitchRatioBuffer);
+        float tmpSmile = Average(smileBuffer);
+        float tmpSurprise = Average(surpriseBuffer);
+        float tmpAngry = Average(angryBuffer);
+        float tmpGaze = gazeBuffer.Count > 0 ? Average(gazeBuffer) : 5f;
+        float tmpAngle = Average(angleScoreBuffer);
+        float tmpYaw = Average(yawRatioBuffer);
+        float tmpPitch = Average(pitchRatioBuffer);
 
-        smileTotal += smileScore;
-        surpriseTotal += surpriseScore;
-        angryTotal += angryScore;
-        smileCount++;
-        surpriseCount++;
-        angryCount++;
+        var (tmpGrade, tmpFaceSummary, tmpFaceDetail, tmpFaceNotes, tmpFaceScore) =
+            EvaluateFaceExpression(tmpSmile, tmpSurprise, tmpAngry);
+        var (tmpGazeSummary, tmpGazeDetail, tmpGazeNotes) =
+            EvaluateGaze(tmpGaze);
+        var (tmpAngleSummary, tmpAngleDetail, tmpAngleNotes) =
+            EvaluateAngle(tmpAngle, tmpYaw, tmpPitch);
 
-        // ── 4) 영역별 평가 (표정 / 시선 / 얼굴각도)
-        var (faceGrade, faceSummary, faceDetail, faceNotes, faceScore) =
-            EvaluateFaceExpression(smileScore, surpriseScore, angryScore);
-
-        var (gazeSummary, gazeDetail, gazeNotes) = EvaluateGaze(gazeScoreAvg);
-        var (angleSummary, angleDetail, angleNotes) = EvaluateAngle(angleScoreAvg, avgYaw, avgPitch);
-
-        float faceScoreRounded = Round1(faceScore);
-        float gazeScoreRounded = Round1(gazeScoreAvg);
-        float angleScoreRounded = Round1(angleScoreAvg);
+        float tmpFaceRounded = Round1(tmpFaceScore);
+        float tmpGazeRounded = Round1(tmpGaze);
+        float tmpAngleRounded = Round1(tmpAngle);
 
         latestFaceExpressionArea = new EvaluationArea
         {
             areaName = "표정",
-            score = faceScoreRounded,
-            result = faceDetail,
-            improvement = faceNotes
+            score = tmpFaceRounded,
+            result = tmpFaceDetail,
+            improvement = tmpFaceNotes
         };
         latestGazeArea = new EvaluationArea
         {
             areaName = "시선(눈동자)",
-            score = gazeScoreRounded,
-            result = gazeDetail,
-            improvement = gazeNotes
+            score = tmpGazeRounded,
+            result = tmpGazeDetail,
+            improvement = tmpGazeNotes
         };
         latestAngleArea = new EvaluationArea
         {
             areaName = "얼굴 각도",
-            score = angleScoreRounded,
-            result = angleDetail,
-            improvement = angleNotes
+            score = tmpAngleRounded,
+            result = tmpAngleDetail,
+            improvement = tmpAngleNotes
         };
 
-        // ── 5) 태도 총점 = 세 영역 점수(각 0~5)의 합을 0~5점으로 정규화 = 평균
-        float attitudeScore = Round1((faceScoreRounded + gazeScoreRounded + angleScoreRounded) / 3f);
-        // 태도 총점 = 3개 영역 평균 후 정수로 반올림
-        attitudeScore = Mathf.Clamp(attitudeScore, 0, 5);
-        latestAttitudeScore = attitudeScore;
+        latestAttitudeScore = Round1((tmpFaceRounded + tmpGazeRounded + tmpAngleRounded) / 3f);
+        latestGrade = tmpGrade;
+        latestEvaluationScore = latestAttitudeScore;
 
-        // ── 6) 하위 호환 필드에도 반영 (기존에 latestGrade/latestEvaluationXXX 를 참조하는 코드가 있을 경우 대비)
-        latestGrade = faceGrade;
-        latestEvaluationScore = attitudeScore;
+        string tmpSummary = $"[표정] {tmpFaceSummary} / [시선] {tmpGazeSummary} / [얼굴각도] {tmpAngleSummary}";
+        string tmpDetail = $"표정: {tmpFaceDetail}\n시선: {tmpGazeDetail}\n얼굴각도: {tmpAngleDetail}";
+        string tmpNotes = tmpFaceNotes + tmpGazeNotes + tmpAngleNotes;
 
-        string combinedSummary = $"[표정] {faceSummary} / [시선] {gazeSummary} / [얼굴각도] {angleSummary}";
-        string combinedDetail = $"표정: {faceDetail}\n시선: {gazeDetail}\n얼굴각도: {angleDetail}";
-        string combinedNotes = faceNotes + gazeNotes + angleNotes;
-
-        latestEvaluationSummary = combinedSummary;
-        latestEvaluationDetail = combinedDetail;
-        latestImprovementNotes = combinedNotes;
-
-        // 1. CSV 저장 (선택 사항)
-        if (csvLogger != null)
-        {
-            csvLogger.SaveScoreToCSV(now, attitudeScore, combinedDetail, combinedNotes);
-        }
-
-        // 2. InterviewDbManager를 통한 DB 직접 저장 연동
-        SaveToDatabase(attitudeScore, combinedNotes, combinedSummary);
-        */
+        latestEvaluationSummary = tmpSummary;
+        latestEvaluationDetail = tmpDetail;
+        latestImprovementNotes = tmpNotes;
     }
 
     /// <summary>
@@ -390,7 +359,7 @@ public class fass : MonoBehaviour
 
         if (success)
         {
-            Debug.Log($"[fass] DB 저장 성공: 태도점수({score}/5.0)");
+            Debug.Log($"[fass] DB 저장 성공: 태도점수({score}/5)");
         }
         else
         {
