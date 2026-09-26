@@ -44,10 +44,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e8ab1e968148a364ea880a1916138fd1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  settingsPopup: {fileID: 0}
-  timerController: {fileID: 0}
-  webCamController: {fileID: 0}
-  micController: {fileID: 0}
-  videoOption: {fileID: 0}
-  evaluationResultText: {fileID: 0}
-  durationResultText: {fileID: 0}
