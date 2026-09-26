@@ -141,6 +141,16 @@ namespace HJS
         // 면접 종료 시 종합 평가 요청
         private void HandleInterviewEnded(InterviewResultData resultData)
         {
+            // 사용자가 한 번도 답변하지 않고 종료한 경우
+            // → 평가할 대화 내용이 없으므로 평가 요청 스킵
+            // → 즉시 씬 전환 처리
+            if (_currentQuestionNumber == 0)
+            {
+                Debug.LogWarning("[GeminiManager] 사용자 답변 없음 → 평가 스킵 → 즉시 씬 전환");
+                InterviewManager.Instance.NotifyInterviewEnded();
+                return;
+            }
+
             StartCoroutine(SendEvaluationRequest(resultData));
         }
 
@@ -537,19 +547,22 @@ namespace HJS
                     Debug.LogError($"[GeminiManager] Gemini 응답: {www.downloadHandler.text}");
 
                     // 503 서버 과부화 → 최대 3회 재시도
-                    if (www.responseCode == 503 && retryCount < 3)
+                    if (www.responseCode == 503 && retryCount < 5)
                     {
                         int nextRetry = retryCount + 1;
+                        // 지수 백오프: 재시도마다 대기 시간 2배 증가
+                        // 1회: 2초 / 2회: 4초 / 3회: 8초 / 4회: 16초 / 5회: 32초
+                        float waitSeconds = Mathf.Pow(2, nextRetry);
                         Debug.LogWarning(
                             $"[GeminiManager] 서버 과부화 → " +
-                            $"5초 후 재시도 ({nextRetry}/3)"
+                            $"{waitSeconds}초 후 재시도 ({nextRetry}/5)"
                         );
-                        yield return new WaitForSeconds(5f);
+                        yield return new WaitForSeconds(waitSeconds);
                         StartCoroutine(SendChatRequestToGemini(newMessage, nextRetry));
                     }
                     else if (www.responseCode == 503)
                     {
-                        Debug.LogError("[GeminiManager] 재시도 횟수 초과 → 면접 진행 불가");
+                        Debug.LogError("[GeminiManager] 재시도 횟수 초과(5회) → 면접 진행 불가");
                     }
                     yield break;
                 }
