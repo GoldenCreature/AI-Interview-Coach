@@ -10,7 +10,7 @@ public class FeedbackItemUI : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI dateText;      // 예: 2026-07-25
     [SerializeField] private TextMeshProUGUI timeText;      // 예: 19:40
-    [SerializeField] private TextMeshProUGUI jobTypeText;   // 예: IT개발자 / 일반 면접
+    [SerializeField] private TextMeshProUGUI jobTypeText;   // 예: IT개발자 / 일상적 대화 면접
 
     [SerializeField] private Button mainButton;
     [SerializeField] private Button deleteButton;
@@ -49,15 +49,23 @@ public class FeedbackItemUI : MonoBehaviour
             if (timeText != null) timeText.text = "";
         }
 
-        // 직무 및 유형 포맷팅
+        // 직무 및 유형 포맷팅 (job_category + interview_type 결합 표시)
         if (jobTypeText != null)
         {
-            string category = myData.JobCategory ?? "";
+            string category = myData.JobCategory;
+            string type = myData.InterviewType;
 
-            category = category.Replace("Casual", "일반 면접")
-                               .Replace("Intensive", "심화 면접");
+            bool hasCategory = !string.IsNullOrEmpty(category);
+            bool hasType = !string.IsNullOrEmpty(type);
 
-            jobTypeText.text = !string.IsNullOrEmpty(category) ? category : "직무 정보 없음";
+            if (hasCategory && hasType)
+                jobTypeText.text = $"{category} / {type}";
+            else if (hasCategory)
+                jobTypeText.text = category;
+            else if (hasType)
+                jobTypeText.text = type;
+            else
+                jobTypeText.text = "직무 정보 없음";
         }
 
         // 버튼 이벤트 연결

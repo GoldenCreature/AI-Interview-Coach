@@ -23,6 +23,9 @@ namespace HJS
         [Range(0f, 1f)]
         [SerializeField] private float sfxVolume = 1f;
 
+        public float BGMVolume => bgmVolume;
+        public float SFXVolume => sfxVolume;
+
         protected override void Awake()
         {
             base.Awake();

@@ -7,6 +7,7 @@ using System;
 
 namespace GoogleSpeechToText.Scripts
 {
+
     public class SpeechToTextManager : MonoBehaviour
     {
         // API 키는 SettingsManager에서 가져옴
@@ -36,7 +37,7 @@ namespace GoogleSpeechToText.Scripts
             }
         }
 
-        private void StartRecording()
+        public void StartRecording()
         {
             clip = Microphone.Start(null, false, 60, 44100);
             recording = true;
@@ -73,7 +74,7 @@ namespace GoogleSpeechToText.Scripts
             }
         }
 
-        private void StopRecording()
+        public void StopRecording()
         {
             var position = Microphone.GetPosition(null);
             Microphone.End(null);
