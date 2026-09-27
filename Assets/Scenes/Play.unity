@@ -317,6 +317,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 4259083307071545842, guid: b9055c7b7632b964e8814406903f1957, type: 3}
+      propertyPath: isMuted
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6723555361572220263, guid: b9055c7b7632b964e8814406903f1957, type: 3}
       propertyPath: m_Name
       value: PlayUI
