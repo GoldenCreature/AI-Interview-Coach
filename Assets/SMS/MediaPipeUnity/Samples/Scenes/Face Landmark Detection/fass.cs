@@ -330,7 +330,7 @@ public class fass : MonoBehaviour
 
         string tmpSummary = $"[표정] {tmpFaceSummary} / [시선] {tmpGazeSummary} / [얼굴각도] {tmpAngleSummary}";
         string tmpDetail = $"표정: {tmpFaceDetail}\n시선: {tmpGazeDetail}\n얼굴각도: {tmpAngleDetail}";
-        string tmpNotes = tmpFaceNotes + tmpGazeNotes + tmpAngleNotes;
+        string tmpNotes = FormatNotesByArea(tmpFaceNotes, tmpGazeNotes, tmpAngleNotes);
 
         latestEvaluationSummary = tmpSummary;
         latestEvaluationDetail = tmpDetail;
@@ -388,6 +388,21 @@ public class fass : MonoBehaviour
     private float Round1(float v)
     {
         return Mathf.Round(Mathf.Clamp(v, 0f, 5f) * 10f) / 10f;
+    }
+
+    /// <summary>
+    /// 개선사항(notes)을 EvaluationDetail과 동일한 형식(영역별 라벨 + 줄바꿈)으로 합칩니다.
+    /// 해당 영역에 특이사항이 없으면 "특이사항 없음"으로 표기합니다.
+    /// </summary>
+    private string FormatNotesByArea(string faceNotes, string gazeNotes, string angleNotes)
+    {
+        string Format(string label, string notes)
+        {
+            string trimmed = notes?.Trim();
+            return string.IsNullOrEmpty(trimmed) ? $"{label}: 지금이 좋으니 좀 더 그대로 유지해주세요." : $"{label}: {trimmed}";
+        }
+
+        return $"{Format("표정", faceNotes)}\n{Format("시선", gazeNotes)}\n{Format("얼굴각도", angleNotes)}";
     }
 
     // ─────────────────────────────────────────────────────────
@@ -734,6 +749,17 @@ public class fass : MonoBehaviour
                 adviceText: "면접 시 카메라를 연결하고 얼굴이 화면에 잘 보이도록 위치를 조정해주세요.",
                 summaryText: "카메라 미연결 또는 얼굴이 감지되지 않아 태도 점수를 측정할 수 없습니다."
             );
+
+            // 개발자 확인용 CSV에도 동일하게 기록
+            if (csvLogger != null)
+            {
+                csvLogger.SaveScoreToCSV(
+                    DateTime.Now,
+                    0f,
+                    "카메라 미연결 또는 얼굴이 감지되지 않아 태도 점수를 측정할 수 없습니다.",
+                    "면접 시 카메라를 연결하고 얼굴이 화면에 잘 보이도록 위치를 조정해주세요."
+                );
+            }
             return;
         }
 
@@ -778,7 +804,7 @@ public class fass : MonoBehaviour
         // 결과 문자열 조합
         string combinedSummary = $"[표정] {faceSummary} / [시선] {gazeSummary} / [얼굴각도] {angleSummary}";
         string combinedDetail = $"표정: {faceDetail}\n시선: {gazeDetail}\n얼굴각도: {angleDetail}";
-        string combinedNotes = faceNotes + gazeNotes + angleNotes;
+        string combinedNotes = FormatNotesByArea(faceNotes, gazeNotes, angleNotes);
 
         latestEvaluationSummary = combinedSummary;
         latestEvaluationDetail = combinedDetail;
@@ -789,5 +815,11 @@ public class fass : MonoBehaviour
         // InterviewDbManager를 통해 DB에 최종 저장
         // sessionId: CurrentSessionId 명시적 전달
         SaveToDatabase(attitudeScore, combinedNotes, combinedSummary);
+
+        // 개발자 확인용 CSV 기록 (DB와 별개로, 인스펙터에 연결된 경우에만 동작)
+        if (csvLogger != null)
+        {
+            csvLogger.SaveScoreToCSV(DateTime.Now, (float)attitudeScore, combinedDetail, combinedNotes);
+        }
     }
 }
