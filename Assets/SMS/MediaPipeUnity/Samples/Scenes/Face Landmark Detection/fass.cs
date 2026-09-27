@@ -341,7 +341,7 @@ public class fass : MonoBehaviour
     /// InterviewDbManager에 태도 점수 및 피드백 전송
     /// (Start()에서 캐싱해둔 dbManager를 사용, 콜백 스레드에서 Instance를 다시 호출하지 않음)
     /// </summary>
-    private void SaveToDatabase(float score, string adviceText, string summaryText)
+    private void SaveToDatabase(int score, string adviceText, string summaryText)
     {
         if (dbManager == null)
         {
@@ -349,10 +349,10 @@ public class fass : MonoBehaviour
             return;
         }
 
-        // currentSessionId 자동 반영 (-1 지정)
+        // currentSessionId 명시적 전달
         bool success = dbManager.SaveFaceEvaluation(
             sessionId: InterviewDbManager.Instance.CurrentSessionId,
-            scoreAttitude: (int)score,
+            scoreAttitude: score,
             adviceAttitudeText: adviceText,
             evalAttitudeText: summaryText
         );
@@ -787,7 +787,7 @@ public class fass : MonoBehaviour
         Debug.Log($"[fass] 최종 태도 점수: {attitudeScore}/5");
 
         // InterviewDbManager를 통해 DB에 최종 저장
-        // sessionId: -1 → 현재 활성 세션 자동 반영
-        SaveToDatabase((float)attitudeScore, combinedNotes, combinedSummary);
+        // sessionId: CurrentSessionId 명시적 전달
+        SaveToDatabase(attitudeScore, combinedNotes, combinedSummary);
     }
 }
