@@ -49,11 +49,11 @@ public class FeedbackItemUI : MonoBehaviour
             if (timeText != null) timeText.text = "";
         }
 
-        // 직무 및 유형 포맷팅 (job_category + interview_type 결합 표시)
+        // 직무 및 유형 포맷팅 (영문 유형 -> 한글 변환 적용)
         if (jobTypeText != null)
         {
             string category = myData.JobCategory;
-            string type = myData.InterviewType;
+            string type = GetKoreanInterviewType(myData.InterviewType);
 
             bool hasCategory = !string.IsNullOrEmpty(category);
             bool hasType = !string.IsNullOrEmpty(type);
@@ -79,6 +79,26 @@ public class FeedbackItemUI : MonoBehaviour
         {
             mainButton.onClick.RemoveAllListeners();
             mainButton.onClick.AddListener(GoToResultScene);
+        }
+    }
+
+    /// <summary>
+    /// DB의 영문 면접 유형을 요청하신 한국어 표기로 변환
+    /// </summary>
+    private string GetKoreanInterviewType(string rawType)
+    {
+        if (string.IsNullOrEmpty(rawType)) return "";
+
+        switch (rawType.Trim().ToLower())
+        {
+            case "casual":
+                return "일상적 대화 면접";
+
+            case "intensive":
+                return "직무 기반 심화 면접";
+
+            default:
+                return rawType; // 지정된 두 가지 외 예외 값일 경우 DB 값 그대로 표시
         }
     }
 
