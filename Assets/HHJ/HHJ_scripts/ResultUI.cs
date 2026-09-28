@@ -44,9 +44,9 @@ namespace ResultUI.Scripts
 
         [Header("--- [테스트용 옵션] ---")]
         [SerializeField] private bool useDummyTest = false;
-        [Range(0f, 5f)][SerializeField] private float testVoiceScore = 4.2f;
-        [Range(0f, 5f)][SerializeField] private float testContentScore = 3.5f;
-        [Range(0f, 5f)][SerializeField] private float testAttitudeScore = 4.8f;
+        [Range(0f, 5f)][SerializeField] private float testVoiceScore = 0f;
+        [Range(0f, 5f)][SerializeField] private float testContentScore = 0f;
+        [Range(0f, 5f)][SerializeField] private float testAttitudeScore = 0f;
 
         private const float MAX_SCORE = 5.0f;
 
@@ -92,13 +92,13 @@ namespace ResultUI.Scripts
                 attitudeBarFill.fillAmount = Mathf.Clamp01(attitudeScore / MAX_SCORE);
 
             if (voiceScoreText != null)
-                voiceScoreText.text = $"[{voiceScore:F1}/5]";
+                voiceScoreText.text = $"[{Mathf.RoundToInt(voiceScore)}/5]";
 
             if (contentScoreText != null)
-                contentScoreText.text = $"[{contentScore:F1}/5]";
+                contentScoreText.text = $"[{Mathf.RoundToInt(contentScore)}/5]";
 
             if (attitudeScoreText != null)
-                attitudeScoreText.text = $"[{attitudeScore:F1}/5]";
+                attitudeScoreText.text = $"[{Mathf.RoundToInt(attitudeScore)}/5]";
         }
 
         private void LoadLatestDbResult()
