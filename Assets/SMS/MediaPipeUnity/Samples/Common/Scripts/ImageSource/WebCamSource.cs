@@ -236,18 +236,34 @@ namespace Mediapipe.Unity
       return resolutions == null || resolutions.Length == 0 ? new ResolutionStruct() : resolutions.OrderBy(resolution => resolution, new ResolutionStructComparer(_preferableDefaultWidth)).First();
     }
 
-    private void InitializeWebCamTexture()
-    {
-      Stop();
-      if (webCamDevice is WebCamDevice valueOfWebCamDevice)
-      {
-        webCamTexture = new WebCamTexture(valueOfWebCamDevice.name, resolution.width, resolution.height, (int)resolution.frameRate);
-        return;
-      }
-      throw new InvalidOperationException("Cannot initialize WebCamTexture because WebCamDevice is not selected");
-    }
+        private void InitializeWebCamTexture()
+        {
+            Stop();
 
-    private IEnumerator WaitForWebCamTexture()
+            if (webCamDevice is WebCamDevice valueOfWebCamDevice)
+            {
+                Debug.Log(
+                    $"[WebCamSource] Camera = {valueOfWebCamDevice.name}, " +
+                    $"Resolution = {resolution.width}x{resolution.height}, " +
+                    $"FPS = {resolution.frameRate}"
+                );
+
+                webCamTexture = new WebCamTexture(
+                    valueOfWebCamDevice.name,
+                    resolution.width,
+                    resolution.height,
+                    (int)resolution.frameRate
+                );
+
+                return;
+            }
+
+            throw new InvalidOperationException(
+                "Cannot initialize WebCamTexture because WebCamDevice is not selected"
+            );
+        }
+
+        private IEnumerator WaitForWebCamTexture()
     {
       const int timeoutFrame = 2000;
       var count = 0;

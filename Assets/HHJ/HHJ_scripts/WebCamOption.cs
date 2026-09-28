@@ -14,6 +14,22 @@ namespace WebCamOptionUI.Scripts
 
         public void StartCamTest()
         {
+<<<<<<< Updated upstream
+=======
+            if (camTestCoroutine != null)
+            {
+                StopCoroutine(camTestCoroutine);
+            }
+
+            camTestCoroutine = StartCoroutine(CoStartCamTest());
+        }
+
+        private IEnumerator CoStartCamTest()
+        {
+            Debug.Log("=== WebCam Test ===");
+            Debug.Log($"ImageSource = {ImageSourceProvider.ImageSource}");
+            Debug.Log($"SourceType = {ImageSourceProvider.CurrentSourceType}");
+>>>>>>> Stashed changes
             var source = ImageSourceProvider.ImageSource;
 
             if (source == null || !source.isPlaying)
