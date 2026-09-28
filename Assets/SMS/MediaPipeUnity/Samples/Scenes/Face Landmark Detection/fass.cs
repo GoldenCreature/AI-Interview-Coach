@@ -23,9 +23,9 @@ public class fass : MonoBehaviour
     // 랜드마크 개수 상수
     // ─────────────────────────────────────────────────────────
     private const int FACE_LANDMARK_COUNT = 468;   // 기본 얼굴 메쉬
-    private const int IRIS_LANDMARK_COUNT = 478;   // 얼굴 메쉬(468) + 홍채(10) - MediaPipe refine_landmarks 옵션 필요
+    private const int IRIS_LANDMARK_COUNT = 478;   // 얼굴 메쉬(468) + 홍채(10)
 
-    // 홍채/눈 랜드마크 인덱스 (refine_landmarks = true 일 때 유효)
+    // 홍채/눈 랜드마크 인덱스
     private const int LEFT_IRIS_CENTER = 468;
     private const int LEFT_EYE_INNER = 133;
     private const int LEFT_EYE_OUTER = 33;
@@ -63,8 +63,6 @@ public class fass : MonoBehaviour
     [Tooltip("시선 이탈 정도를 점수로 환산할 때 곱해지는 민감도. 값이 클수록 작은 눈동자 이동에도 점수가 크게 떨어집니다.")]
     public float gazeSensitivity = 18f;
 
-    private List<Vector3> latestLandmarks = null;
-
     [Header("얼굴 각도 제한 (Head Pose Gate) - 수동 입력")]
     [Tooltip("체크하면 얼굴이 특정 각도 이상 돌아갔을 때 표정/시선 분석(점수 계산)을 건너뜁니다. 각도 점수 자체는 게이트와 무관하게 계속 측정됩니다.")]
     public bool enableAngleGate = true;
@@ -78,50 +76,69 @@ public class fass : MonoBehaviour
     [Tooltip("각도 초과로 표정/시선 분석이 멈춘 상태인지")]
     public bool isFaceTooAngled = false;
 
-    [Header("노이즈 완화 (이동평균)")]
-    [Tooltip("저장 시점에 사용할 최근 프레임 점수의 개수.")]
-    public int smoothingWindowSize = 30;
+    // ─────────────────────────────────────────────────────────
+    // 누적 통계 (면접 시작 ~ 종료 전체 구간)
+    // 이동평균(30프레임 버퍼)은 사용하지 않고, 프레임마다 합계/개수를 누적해 평균을 냅니다.
+    // ─────────────────────────────────────────────────────────
+    private class Accumulator
+    {
+        public float total;
+        public int count;
 
-    // 표정 하위 지표 버퍼
-    private readonly Queue<float> smileBuffer = new Queue<float>();
-    private readonly Queue<float> surpriseBuffer = new Queue<float>();
-    private readonly Queue<float> angryBuffer = new Queue<float>();
+        public void Add(float v)
+        {
+            total += v;
+            count++;
+        }
 
-    // 시선(눈동자) 점수 버퍼
-    private readonly Queue<float> gazeBuffer = new Queue<float>();
+        public float Average => count > 0 ? total / count : 0f;
 
-    // 얼굴 각도 점수 및 원자료(raw ratio) 버퍼
-    private readonly Queue<float> angleScoreBuffer = new Queue<float>();
-    private readonly Queue<float> yawRatioBuffer = new Queue<float>();
-    private readonly Queue<float> pitchRatioBuffer = new Queue<float>();
+        public void Reset()
+        {
+            total = 0f;
+            count = 0;
+        }
+    }
 
-    private float smileTotal = 0f;
-    private float surpriseTotal = 0f;
-    private float angryTotal = 0f;
-    private int smileCount = 0;
-    private int surpriseCount = 0;
-    private int angryCount = 0;
+    private readonly Accumulator smileAcc = new Accumulator();
+    private readonly Accumulator surpriseAcc = new Accumulator();
+    private readonly Accumulator angryAcc = new Accumulator();
+    private readonly Accumulator gazeAcc = new Accumulator();
+    private readonly Accumulator angleAcc = new Accumulator();
+    private readonly Accumulator yawAcc = new Accumulator();
+    private readonly Accumulator pitchAcc = new Accumulator();
 
-    public float SmileTotal => smileTotal;
-    public float SmileAverage => smileCount > 0 ? smileTotal / smileCount : 0f;
-    public int SmileCount => smileCount;
+    // MediaPipe 콜백 스레드 ↔ 메인 스레드 동시 접근 방지용
+    private readonly object statsLock = new object();
 
-    public float SurpriseTotal => surpriseTotal;
-    public float SurpriseAverage => surpriseCount > 0 ? surpriseTotal / surpriseCount : 0f;
-    public int SurpriseCount => surpriseCount;
+    public float SmileTotal { get { lock (statsLock) return smileAcc.total; } }
+    public float SmileAverage { get { lock (statsLock) return smileAcc.Average; } }
+    public int SmileCount { get { lock (statsLock) return smileAcc.count; } }
 
-    public float AngryTotal => angryTotal;
-    public float AngryAverage => angryCount > 0 ? angryTotal / angryCount : 0f;
-    public int AngryCount => angryCount;
+    public float SurpriseTotal { get { lock (statsLock) return surpriseAcc.total; } }
+    public float SurpriseAverage { get { lock (statsLock) return surpriseAcc.Average; } }
+    public int SurpriseCount { get { lock (statsLock) return surpriseAcc.count; } }
 
+    public float AngryTotal { get { lock (statsLock) return angryAcc.total; } }
+    public float AngryAverage { get { lock (statsLock) return angryAcc.Average; } }
+    public int AngryCount { get { lock (statsLock) return angryAcc.count; } }
+
+    /// <summary>
+    /// 모든 누적 통계를 초기화합니다. 새 면접이 시작될 때 호출됩니다.
+    /// </summary>
     public void ResetStatistics()
     {
-        smileTotal = 0f;
-        surpriseTotal = 0f;
-        angryTotal = 0f;
-        smileCount = 0;
-        surpriseCount = 0;
-        angryCount = 0;
+        lock (statsLock)
+        {
+            smileAcc.Reset();
+            surpriseAcc.Reset();
+            angryAcc.Reset();
+            gazeAcc.Reset();
+            angleAcc.Reset();
+            yawAcc.Reset();
+            pitchAcc.Reset();
+        }
+        warnedNoIris = false;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -132,7 +149,7 @@ public class fass : MonoBehaviour
     public string latestEvaluationSummary = "";
     public string latestEvaluationDetail = "";
     public string latestImprovementNotes = "";
-    public float latestEvaluationScore = 0f;
+    public int latestEvaluationScore = 0;
 
     public enum ExpressionGrade
     {
@@ -150,7 +167,7 @@ public class fass : MonoBehaviour
     public struct EvaluationArea
     {
         public string areaName;    // 평가 영역명
-        public float score;        // 0~5, 소수 첫째자리
+        public int score;          // 0~5, 정수
         public string result;      // 평가 결과 (문장)
         public string improvement; // 개선 사항 (문장, 여러 줄 가능)
     }
@@ -161,7 +178,7 @@ public class fass : MonoBehaviour
     public EvaluationArea latestAngleArea;
 
     [Tooltip("표정, 시선, 얼굴각도 3개 영역 점수를 합산 후 0~5점으로 정규화한 최종 태도 점수")]
-    public float latestAttitudeScore = 0f;
+    public int latestAttitudeScore = 0;
 
     /// <summary>
     /// UI 테이블(평가 영역 / 평가 결과 / 개선 사항) 바인딩용 - 표정/시선/얼굴각도 3개 행을 반환합니다.
@@ -173,6 +190,9 @@ public class fass : MonoBehaviour
 
     void OnEnable()
     {
+        // 새 면접 시작 시 이전 데이터가 섞이지 않도록 초기화
+        ResetStatistics();
+
         if (runner != null)
             runner.OnResultOutput += HandleResult;
         else
@@ -180,16 +200,12 @@ public class fass : MonoBehaviour
 
         // InterviewManager의 면접 종료 요청 이벤트 구독
         // 면접이 끝나면 HandleInterviewEnded()가 자동으로 실행됨
-        // OnInterviewEndRequested는 멀티캐스트 이벤트라
-        // GeminiManager, Play.cs와 함께 동시에 구독 가능
         HJS.InterviewManager.OnInterviewEndRequested += HandleInterviewEnded;
     }
 
     void Start()
     {
         // 메인 스레드(Start)에서 한 번만 안전하게 찾아 캐싱합니다.
-        // 이후 MediaPipe 콜백 스레드에서는 이 캐싱된 참조만 사용하고,
-        // InterviewDbManager.Instance(FindObjectOfType)는 다시 호출하지 않습니다.
         dbManager = InterviewDbManager.Instance;
         if (dbManager == null)
             Debug.LogWarning("[fass] InterviewDbManager를 씬에서 찾지 못했습니다. DB 저장이 스킵됩니다.");
@@ -201,7 +217,6 @@ public class fass : MonoBehaviour
             runner.OnResultOutput -= HandleResult;
 
         // 씬 전환 시 오브젝트 파괴 전 구독 해제
-        // 해제 안 하면 다음 면접에서 중복 실행될 수 있음
         HJS.InterviewManager.OnInterviewEndRequested -= HandleInterviewEnded;
     }
 
@@ -223,123 +238,177 @@ public class fass : MonoBehaviour
         OnFaceLandmarksDetected(landmarksList);
     }
 
-    // 더 이상 사용 안 함(주석처리 했으니 확인 요망 검증이후 삭제)
-    /*
-    [Header("저장 간격")]
-    [Tooltip("점수를 저장할 최소 간격(분 단위)")]
-    public float logIntervalMinutes = 3f;
-
-    private DateTime lastLoggedTime = DateTime.MinValue;
-    */
-
     public void OnFaceLandmarksDetected(List<Vector3> landmarks)
     {
-        latestLandmarks = landmarks;
-
         if (landmarks == null || landmarks.Count < FACE_LANDMARK_COUNT)
         {
             return;
         }
 
         // ── 1) 얼굴 각도(Yaw/Pitch)는 게이트 여부와 무관하게 항상 측정합니다.
-        //     (고개를 자주 돌리는 습관 자체가 태도 평가 대상이므로, 게이트가 걸려도 각도 측정은 계속되어야 합니다.)
         float yawRatio = GetRawYawRatio(landmarks);
         float pitchRatio = GetRawPitchRatio(landmarks);
         float frameAngleScore = CalculateAngleScore(yawRatio, pitchRatio);
 
-        PushToBuffer(yawRatioBuffer, yawRatio);
-        PushToBuffer(pitchRatioBuffer, pitchRatio);
-        PushToBuffer(angleScoreBuffer, frameAngleScore);
-
-        bool tooAngled = enableAngleGate && IsFaceTooAngled(yawRatio, pitchRatio, out string angleReason);
+        bool tooAngled = enableAngleGate && IsFaceTooAngled(yawRatio, pitchRatio, out _);
         isFaceTooAngled = tooAngled;
 
-        // ── 2) 얼굴 각도가 너무 심하면 표정/시선 측정은 신뢰도가 낮으므로 이번 프레임은 건너뜁니다.
-        //     (단, 위에서 각도 점수 자체는 이미 반영되었습니다.)
-        if (!tooAngled)
+        // ── 2) 프레임 값을 누적합니다. 각도가 심하면 표정/시선은 신뢰도가 낮으므로 건너뜁니다.
+        bool needIrisWarning = false;
+
+        lock (statsLock)
         {
-            float frameSmile = CalculateSmile(landmarks);
-            float frameSurprise = CalculateSurprise(landmarks);
-            float frameAngry = CalculateAngry(landmarks);
+            yawAcc.Add(yawRatio);
+            pitchAcc.Add(pitchRatio);
+            angleAcc.Add(frameAngleScore);
 
-            PushToBuffer(smileBuffer, frameSmile);
-            PushToBuffer(surpriseBuffer, frameSurprise);
-            PushToBuffer(angryBuffer, frameAngry);
+            if (!tooAngled)
+            {
+                smileAcc.Add(CalculateSmile(landmarks));
+                surpriseAcc.Add(CalculateSurprise(landmarks));
+                angryAcc.Add(CalculateAngry(landmarks));
 
-            if (landmarks.Count >= IRIS_LANDMARK_COUNT)
-            {
-                float frameGaze = CalculateGazeScore(landmarks);
-                PushToBuffer(gazeBuffer, frameGaze);
-            }
-            else if (!warnedNoIris)
-            {
-                warnedNoIris = true;
-                Debug.LogWarning("[fass] 홍채(iris) 랜드마크가 감지되지 않았습니다. MediaPipe FaceLandmarker의 refine_landmarks(478개 랜드마크) 옵션을 켜야 시선(눈동자) 평가가 동작합니다.");
+                if (landmarks.Count >= IRIS_LANDMARK_COUNT)
+                {
+                    gazeAcc.Add(CalculateGazeScore(landmarks));
+                }
+                else if (!warnedNoIris)
+                {
+                    warnedNoIris = true;
+                    needIrisWarning = true;
+                }
             }
         }
 
-        // ── 3) Inspector 실시간 표시용 업데이트
-        // DB 저장 없이 개발자 확인용으로만 사용
+        if (needIrisWarning)
+        {
+            Debug.LogWarning("[fass] 홍채(iris) 랜드마크가 감지되지 않았습니다. 478개 랜드마크를 출력하는 모델이 로드됐는지 확인하세요.");
+        }
+
+        // ── 3) Inspector 실시간 표시용 업데이트 (DB 저장 없음, 개발자 확인용)
         // 최종 계산 및 DB 저장은 면접 종료 시 CalculateFinalScoreAndSave()에서 처리
-        if (smileBuffer.Count == 0 && angleScoreBuffer.Count == 0) return;
+        Snapshot snap = TakeSnapshot();
+        if (!snap.hasFace && !snap.hasAngle) return;
 
-        float tmpSmile = Average(smileBuffer);
-        float tmpSurprise = Average(surpriseBuffer);
-        float tmpAngry = Average(angryBuffer);
-        float tmpGaze = gazeBuffer.Count > 0 ? Average(gazeBuffer) : 5f;
-        float tmpAngle = Average(angleScoreBuffer);
-        float tmpYaw = Average(yawRatioBuffer);
-        float tmpPitch = Average(pitchRatioBuffer);
+        EvaluationResult eval = EvaluateAll(snap);
 
-        var (tmpGrade, tmpFaceSummary, tmpFaceDetail, tmpFaceNotes, tmpFaceScore) =
-            EvaluateFaceExpression(tmpSmile, tmpSurprise, tmpAngry);
-        var (tmpGazeSummary, tmpGazeDetail, tmpGazeNotes) =
-            EvaluateGaze(tmpGaze);
-        var (tmpAngleSummary, tmpAngleDetail, tmpAngleNotes) =
-            EvaluateAngle(tmpAngle, tmpYaw, tmpPitch);
+        latestFaceExpressionArea = eval.faceArea;
+        latestGazeArea = eval.gazeArea;
+        latestAngleArea = eval.angleArea;
 
-        float tmpFaceRounded = Round1(tmpFaceScore);
-        float tmpGazeRounded = Round1(tmpGaze);
-        float tmpAngleRounded = Round1(tmpAngle);
-
-        latestFaceExpressionArea = new EvaluationArea
-        {
-            areaName = "표정",
-            score = tmpFaceRounded,
-            result = tmpFaceDetail,
-            improvement = tmpFaceNotes
-        };
-        latestGazeArea = new EvaluationArea
-        {
-            areaName = "시선(눈동자)",
-            score = tmpGazeRounded,
-            result = tmpGazeDetail,
-            improvement = tmpGazeNotes
-        };
-        latestAngleArea = new EvaluationArea
-        {
-            areaName = "얼굴 각도",
-            score = tmpAngleRounded,
-            result = tmpAngleDetail,
-            improvement = tmpAngleNotes
-        };
-
-        latestAttitudeScore = Round1((tmpFaceRounded + tmpGazeRounded + tmpAngleRounded) / 3f);
-        latestGrade = tmpGrade;
+        latestAttitudeScore = eval.attitudeScore;
+        latestGrade = eval.grade;
         latestEvaluationScore = latestAttitudeScore;
 
-        string tmpSummary = $"[표정] {tmpFaceSummary} / [시선] {tmpGazeSummary} / [얼굴각도] {tmpAngleSummary}";
-        string tmpDetail = $"표정: {tmpFaceDetail}\n시선: {tmpGazeDetail}\n얼굴각도: {tmpAngleDetail}";
-        string tmpNotes = FormatNotesByArea(tmpFaceNotes, tmpGazeNotes, tmpAngleNotes);
+        latestEvaluationSummary = eval.summary;
+        latestEvaluationDetail = eval.detail;
+        latestImprovementNotes = eval.notes;
+    }
 
-        latestEvaluationSummary = tmpSummary;
-        latestEvaluationDetail = tmpDetail;
-        latestImprovementNotes = tmpNotes;
+    // ─────────────────────────────────────────────────────────
+    // 스냅샷 / 종합 평가
+    // ─────────────────────────────────────────────────────────
+    private struct Snapshot
+    {
+        public float smile, surprise, angry, gaze, angle, yaw, pitch;
+        public bool hasFace;   // 표정 데이터가 하나라도 있는지 (각도 게이트에 계속 걸리면 false)
+        public bool hasAngle;  // 각도 데이터가 하나라도 있는지
+    }
+
+    private struct EvaluationResult
+    {
+        public EvaluationArea faceArea, gazeArea, angleArea;
+        public ExpressionGrade grade;
+        public string summary, detail, notes;
+        public int attitudeScore; // 3개 영역 점수 평균 (반올림, 0~5)
+    }
+
+    private Snapshot TakeSnapshot()
+    {
+        lock (statsLock)
+        {
+            return new Snapshot
+            {
+                smile = smileAcc.Average,
+                surprise = surpriseAcc.Average,
+                angry = angryAcc.Average,
+                // 홍채 미검출 시 시선 점수는 기본값 5점 처리
+                gaze = gazeAcc.count > 0 ? gazeAcc.Average : 5f,
+                angle = angleAcc.Average,
+                yaw = yawAcc.Average,
+                pitch = pitchAcc.Average,
+                hasFace = smileAcc.count > 0,
+                hasAngle = angleAcc.count > 0
+            };
+        }
+    }
+
+    private EvaluationResult EvaluateAll(Snapshot s)
+    {
+        var result = new EvaluationResult();
+
+        // 표정
+        string faceSummary, faceDetail, faceNotes;
+        float faceScore;
+        if (s.hasFace)
+        {
+            (result.grade, faceSummary, faceDetail, faceNotes, faceScore) =
+                EvaluateFaceExpression(s.smile, s.surprise, s.angry);
+        }
+        else
+        {
+            // 각도 게이트 때문에 표정이 한 프레임도 측정되지 않은 경우: 0점이 아니라 "측정 불가"로 처리
+            result.grade = ExpressionGrade.Average;
+            faceSummary = "측정 불가";
+            faceDetail = "얼굴이 정면에서 크게 벗어나 표정을 측정하지 못했습니다.";
+            faceNotes = "";
+            faceScore = 0f;
+        }
+
+        // 시선 / 각도
+        var (gazeSummary, gazeDetail, gazeNotes) = EvaluateGaze(s.gaze);
+        var (angleSummary, angleDetail, angleNotes) = EvaluateAngle(s.angle, s.yaw, s.pitch);
+
+        int faceRounded = RoundScore(faceScore);
+        int gazeRounded = RoundScore(s.gaze);
+        int angleRounded = RoundScore(s.angle);
+
+        result.faceArea = new EvaluationArea
+        {
+            areaName = "표정",
+            score = faceRounded,
+            result = faceDetail,
+            improvement = faceNotes
+        };
+        result.gazeArea = new EvaluationArea
+        {
+            areaName = "시선(눈동자)",
+            score = gazeRounded,
+            result = gazeDetail,
+            improvement = gazeNotes
+        };
+        result.angleArea = new EvaluationArea
+        {
+            areaName = "얼굴 각도",
+            score = angleRounded,
+            result = angleDetail,
+            improvement = angleNotes
+        };
+
+        // 태도 점수: 표정 / 시선 / 얼굴각도 3개 영역 점수의 평균 (표정은 항상 포함)
+        // 표정이 측정 불가였던 경우 faceRounded는 0점으로 들어갑니다.
+        result.attitudeScore = RoundScore((faceRounded + gazeRounded + angleRounded) / 3f);
+
+        result.summary = $"[표정] {faceSummary} / [시선] {gazeSummary} / [얼굴각도] {angleSummary}";
+        result.detail = $"표정: {faceDetail}\n시선: {gazeDetail}\n얼굴각도: {angleDetail}";
+        result.notes = FormatNotesByArea(faceNotes, gazeNotes, angleNotes);
+
+        return result;
     }
 
     /// <summary>
     /// InterviewDbManager에 태도 점수 및 피드백 전송
-    /// (Start()에서 캐싱해둔 dbManager를 사용, 콜백 스레드에서 Instance를 다시 호출하지 않음)
+    /// (Start()에서 캐싱해둔 dbManager를 사용)
     /// </summary>
     private void SaveToDatabase(int score, string adviceText, string summaryText)
     {
@@ -349,9 +418,8 @@ public class fass : MonoBehaviour
             return;
         }
 
-        // currentSessionId 명시적 전달
         bool success = dbManager.SaveFaceEvaluation(
-            sessionId: InterviewDbManager.Instance.CurrentSessionId,
+            sessionId: dbManager.CurrentSessionId,
             scoreAttitude: score,
             adviceAttitudeText: adviceText,
             evalAttitudeText: summaryText
@@ -367,39 +435,24 @@ public class fass : MonoBehaviour
         }
     }
 
-    private void PushToBuffer(Queue<float> buffer, float value)
+    /// <summary>
+    /// 0~5 범위로 제한한 뒤 정수로 반올림합니다. (2.5 → 3, 3.5 → 4처럼 항상 반올림)
+    /// </summary>
+    private int RoundScore(float v)
     {
-        buffer.Enqueue(value);
-        int maxSize = Mathf.Max(1, smoothingWindowSize);
-        while (buffer.Count > maxSize)
-        {
-            buffer.Dequeue();
-        }
-    }
-
-    private float Average(Queue<float> buffer)
-    {
-        if (buffer.Count == 0) return 0f;
-        float sum = 0f;
-        foreach (float v in buffer) sum += v;
-        return sum / buffer.Count;
-    }
-
-    private float Round1(float v)
-    {
-        return Mathf.Round(Mathf.Clamp(v, 0f, 5f) * 10f) / 10f;
+        return Mathf.Clamp(Mathf.FloorToInt(v + 0.5f), 0, 5);
     }
 
     /// <summary>
     /// 개선사항(notes)을 EvaluationDetail과 동일한 형식(영역별 라벨 + 줄바꿈)으로 합칩니다.
-    /// 해당 영역에 특이사항이 없으면 "특이사항 없음"으로 표기합니다.
+    /// 해당 영역에 특이사항이 없으면 부드러운 유지 문구로 표기합니다.
     /// </summary>
     private string FormatNotesByArea(string faceNotes, string gazeNotes, string angleNotes)
     {
         string Format(string label, string notes)
         {
             string trimmed = notes?.Trim();
-            return string.IsNullOrEmpty(trimmed) ? $"{label}: 지금이 좋으니 좀 더 그대로 유지해주세요." : $"{label}: {trimmed}";
+            return string.IsNullOrEmpty(trimmed) ? $"{label}: 현재 상태가 좋으니, 지금의 느낌을 최대한 유지해주세요." : $"{label}: {trimmed}";
         }
 
         return $"{Format("표정", faceNotes)}\n{Format("시선", gazeNotes)}\n{Format("얼굴각도", angleNotes)}";
@@ -507,21 +560,21 @@ public class fass : MonoBehaviour
     private float CalculateSmile(List<Vector3> landmarks)
     {
         float ratio = GetRawSmileRatio(landmarks);
-        float score = (ratio - neutralSmileRatio) * 24f; // 완화: 35 → 24
+        float score = (ratio - neutralSmileRatio) * 24f;
         return Mathf.Clamp(score, 0f, 5f);
     }
 
     private float CalculateSurprise(List<Vector3> landmarks)
     {
         float ratio = GetRawSurpriseRatio(landmarks);
-        float score = (ratio - neutralSurpriseRatio) * 35f; // 완화: 50 → 35
+        float score = (ratio - neutralSurpriseRatio) * 35f;
         return Mathf.Clamp(score, 0f, 5f);
     }
 
     private float CalculateAngry(List<Vector3> landmarks)
     {
         float ratio = GetRawAngryRatio(landmarks);
-        float score = (neutralAngryRatio - ratio) * 42f; // 완화: 60 → 42
+        float score = (neutralAngryRatio - ratio) * 42f;
         return Mathf.Clamp(score, 0f, 5f);
     }
 
@@ -557,7 +610,7 @@ public class fass : MonoBehaviour
     // ─────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 표정(미소/놀람/찡그림 조합) 평가. 기존 로직을 그대로 사용합니다.
+    /// 표정(미소/놀람/찡그림 조합) 평가.
     /// </summary>
     private (ExpressionGrade grade, string summary, string detail, string improvementNotes, float normalizedScore) EvaluateFaceExpression(
         float smile, float surprise, float angry)
@@ -717,7 +770,6 @@ public class fass : MonoBehaviour
 
     // -----------------------------------------------
     // 면접 종료 이벤트 수신 시 자동 호출
-    // OnInterviewEndRequested 이벤트 구독 함수
     // GeminiManager의 비동기 평가 요청보다 먼저 동기로 실행됨
     // → 씬 전환 전 DB 저장 보장
     // -----------------------------------------------
@@ -729,97 +781,53 @@ public class fass : MonoBehaviour
 
     // -----------------------------------------------
     // 면접 종료 시 최종 태도 점수 계산 + DB 저장
-    // 기존 OnFaceLandmarksDetected()는 3분 간격으로만 저장하기 때문에
-    // 면접 종료 시점에 즉시 계산하는 별도 메서드가 필요함
-    // 현재까지 수집된 버퍼 데이터를 기반으로 최종 점수 산출
+    // 면접 시작부터 종료까지 누적된 전체 구간의 평균으로 최종 점수를 산출
     // -----------------------------------------------
     public void CalculateFinalScoreAndSave()
     {
-        // 버퍼에 데이터가 없으면 측정이 안 된 것
-        // → 저장 스킵 (빈 데이터 DB 저장 방지)
-        if (smileBuffer.Count == 0 && angleScoreBuffer.Count == 0)
+        Snapshot snap = TakeSnapshot();
+
+        // 측정 데이터가 전혀 없으면 카메라 미연결 또는 얼굴 미감지
+        if (!snap.hasFace && !snap.hasAngle)
         {
             Debug.LogWarning("[fass] 측정 데이터 없음 → 카메라 미연결 메시지 저장");
 
-            // 카메라 미연결 또는 얼굴 미감지 시
-            // 태도 점수 0점 + 안내 메시지 DB 저장
-            // → Result 씬에서 사용자가 확인 가능
-            SaveToDatabase(
-                score: 0,
-                adviceText: "면접 시 카메라를 연결하고 얼굴이 화면에 잘 보이도록 위치를 조정해주세요.",
-                summaryText: "카메라 미연결 또는 얼굴이 감지되지 않아 태도 점수를 측정할 수 없습니다."
-            );
+            const string noDataSummary = "카메라 미연결 또는 얼굴이 감지되지 않아 태도 점수를 측정할 수 없습니다.";
+            const string noDataAdvice = "면접 시 카메라를 연결하고 얼굴이 화면에 잘 보이도록 위치를 조정해주세요.";
 
-            // 개발자 확인용 CSV에도 동일하게 기록
+            SaveToDatabase(score: 0, adviceText: noDataAdvice, summaryText: noDataSummary);
+
             if (csvLogger != null)
             {
-                csvLogger.SaveScoreToCSV(
-                    DateTime.Now,
-                    0f,
-                    "카메라 미연결 또는 얼굴이 감지되지 않아 태도 점수를 측정할 수 없습니다.",
-                    "면접 시 카메라를 연결하고 얼굴이 화면에 잘 보이도록 위치를 조정해주세요."
-                );
+                csvLogger.SaveScoreToCSV(DateTime.Now, 0f, noDataSummary, noDataAdvice);
             }
             return;
         }
 
-        // 현재까지 수집된 버퍼의 평균값으로 최종 점수 계산
-        float smileScore = Average(smileBuffer);
-        float surpriseScore = Average(surpriseBuffer);
-        float angryScore = Average(angryBuffer);
+        EvaluationResult eval = EvaluateAll(snap);
 
-        // 홍채 미검출 시 시선 점수는 기본값 5점 처리
-        float gazeScoreAvg = gazeBuffer.Count > 0 ? Average(gazeBuffer) : 5f;
-        float angleScoreAvg = Average(angleScoreBuffer);
-        float avgYaw = Average(yawRatioBuffer);
-        float avgPitch = Average(pitchRatioBuffer);
+        // 태도 총점 = 표정/시선/얼굴각도 int 점수 평균을 반올림한 값 (0~5점)
+        int attitudeScore = eval.attitudeScore;
 
-        // 3개 영역 평가 실행
-        // 표정: 미소/놀람/찡그림 조합으로 판단
-        // 시선: 눈동자가 카메라 정면을 얼마나 응시했는지
-        // 각도: 고개가 얼마나 정면을 유지했는지
-        var (faceGrade, faceSummary, faceDetail, faceNotes, faceScore) =
-            EvaluateFaceExpression(smileScore, surpriseScore, angryScore);
-        var (gazeSummary, gazeDetail, gazeNotes) =
-            EvaluateGaze(gazeScoreAvg);
-        var (angleSummary, angleDetail, angleNotes) =
-            EvaluateAngle(angleScoreAvg, avgYaw, avgPitch);
+        // Inspector에서 확인 가능하도록 퍼블릭 필드에 반영
+        latestFaceExpressionArea = eval.faceArea;
+        latestGazeArea = eval.gazeArea;
+        latestAngleArea = eval.angleArea;
+        latestAttitudeScore = attitudeScore;
+        latestGrade = eval.grade;
+        latestEvaluationScore = attitudeScore;
+        latestEvaluationSummary = eval.summary;
+        latestEvaluationDetail = eval.detail;
+        latestImprovementNotes = eval.notes;
 
-        // 소수 첫째자리로 반올림
-        float faceScoreRounded = Round1(faceScore);
-        float gazeScoreRounded = Round1(gazeScoreAvg);
-        float angleScoreRounded = Round1(angleScoreAvg);
+        Debug.Log($"[fass] 최종 태도 점수: {attitudeScore}/5 (표정 프레임 {snap.hasFace}, 누적 각도 프레임 {angleAcc.count})");
 
-        // 태도 총점 = 3개 영역 평균 후 정수로 반올림 (각 0~5점)
-        int attitudeScore = Mathf.Clamp(
-            Mathf.RoundToInt(
-                (faceScoreRounded + gazeScoreRounded + angleScoreRounded) / 3f),
-            0, 5);
+        SaveToDatabase(attitudeScore, eval.notes, eval.detail);
 
-        // Inspector에서 실시간 확인 가능하도록 퍼블릭 필드에 반영
-        latestAttitudeScore = (float)attitudeScore;
-        latestGrade = faceGrade;
-        latestEvaluationScore = (float)attitudeScore;
-
-        // 결과 문자열 조합
-        string combinedSummary = $"[표정] {faceSummary} / [시선] {gazeSummary} / [얼굴각도] {angleSummary}";
-        string combinedDetail = $"표정: {faceDetail}\n시선: {gazeDetail}\n얼굴각도: {angleDetail}";
-        string combinedNotes = FormatNotesByArea(faceNotes, gazeNotes, angleNotes);
-
-        latestEvaluationSummary = combinedSummary;
-        latestEvaluationDetail = combinedDetail;
-        latestImprovementNotes = combinedNotes;
-
-        Debug.Log($"[fass] 최종 태도 점수: {attitudeScore}/5");
-
-        // InterviewDbManager를 통해 DB에 최종 저장
-        // sessionId: CurrentSessionId 명시적 전달
-        SaveToDatabase(attitudeScore, combinedNotes, combinedSummary);
-
-        // 개발자 확인용 CSV 기록 (DB와 별개로, 인스펙터에 연결된 경우에만 동작)
+        // 개발자 확인용 CSV 기록 (인스펙터에 연결된 경우에만 동작)
         if (csvLogger != null)
         {
-            csvLogger.SaveScoreToCSV(DateTime.Now, (float)attitudeScore, combinedDetail, combinedNotes);
+            csvLogger.SaveScoreToCSV(DateTime.Now, attitudeScore, eval.detail, eval.notes);
         }
     }
 }
