@@ -13,6 +13,7 @@ namespace WebCamOptionUI.Scripts
         [SerializeField] private RawImage displayImage;
         [SerializeField] private TextMeshProUGUI statusText;
 
+        private WebCamTexture webCamTexture;
         private Coroutine camTestCoroutine;
 
         /// <summary>
@@ -30,47 +31,44 @@ namespace WebCamOptionUI.Scripts
 
         private IEnumerator CoStartCamTest()
         {
-            var source = ImageSourceProvider.ImageSource;
+            if (statusText != null)
+                statusText.text = "카메라를 연결하는 중...";
 
-            if (source == null)
+            // 1. 연결된 카메라 장치가 있는지 확인
+            WebCamDevice[] devices = WebCamTexture.devices;
+            if (devices.Length == 0)
             {
                 if (statusText != null)
                     statusText.text = "연결된 카메라를 찾을 수 없습니다.";
                 yield break;
             }
 
-            if (statusText != null)
-                statusText.text = "카메라를 연결하는 중...";
+            // 2. WebCamTexture 생성 및 재생
+            webCamTexture = new WebCamTexture(devices[0].name);
+            webCamTexture.Play();
 
-            // 1. 카메라가 재생 중이 아니면 재생
-            if (!source.isPlaying)
-            {
-                yield return source.Play();
-            }
-
-            // 2. 텍스처 준비 대기 (최대 5초 타임아웃)
+            // 3. 텍스처 준비 대기 (최대 5초 타임아웃)
             float timeout = 5.0f;
             float elapsed = 0f;
 
-            while (source.GetCurrentTexture() == null && elapsed < timeout)
+            while (webCamTexture.width <= 16 && elapsed < timeout)
             {
                 elapsed += Time.deltaTime;
                 yield return null;
             }
 
-            // 3. 텍스처 확인 및 적용
-            var tex = source.GetCurrentTexture();
-            if (tex == null)
+            if (webCamTexture.width <= 16)
             {
                 if (statusText != null)
                     statusText.text = "카메라 영상을 불러올 수 없습니다.";
                 yield break;
             }
 
+            // 4. 화면에 표시
             if (displayImage != null)
             {
-                displayImage.texture = tex;
-                displayImage.enabled = true; // 화면 켜기
+                displayImage.texture = webCamTexture;
+                displayImage.enabled = true;
             }
 
             if (statusText != null)
@@ -90,10 +88,16 @@ namespace WebCamOptionUI.Scripts
                 camTestCoroutine = null;
             }
 
+            if (webCamTexture != null)
+            {
+                webCamTexture.Stop();
+                webCamTexture = null;
+            }
+
             if (displayImage != null)
             {
                 displayImage.texture = null;
-                displayImage.enabled = false; // 화면 끄기 (흰 상자 안 보이게)
+                displayImage.enabled = false;
             }
 
             if (statusText != null)
@@ -104,7 +108,6 @@ namespace WebCamOptionUI.Scripts
 
         private void OnDisable()
         {
-            // 설정 창이 닫히면 자동으로 테스트 종료
             StopCamTest();
         }
     }
