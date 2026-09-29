@@ -48,7 +48,7 @@ namespace HJS
 
         // 사용할 Gemini 모델명
         // 모델 변경 시 이 변수만 수정하면 됨
-        private string geminiModel = "gemini-3.5-flash";
+        private string geminiModel = "gemini-3.5-flash-lite";
 
         // Gemini API 엔드포인트
         // 모델명은 geminiModel 변수로 관리
@@ -517,18 +517,14 @@ namespace HJS
                 parts = new Part[] { new Part { text = newMessage } }
             };
 
-            // 기존 대화 기록에 새 메시지 추가
-            // 첫 요청(retryCount == 0)일 때만 추가 
-            // 재시도 시에는 이미 추가되어있으니 생략
-            List<Content> contentsList = new List<Content>(chatHistory);
-            if (retryCount == 0)
-            {
-                contentsList.Add(userContent);
-                chatHistory = contentsList.ToArray();
-            }
+            // 기존 대화 기록에 새 임시 메시지 추가
+            // 임시 요청용 리스트 (chatHistory는 성공 전까지 절대 수정 안 함)
+            // 재시도 포함 항상 userContent 추가 (chatHistory가 항상 깨끗한 상태이므로)
+            List<Content> requestList = new List<Content>(chatHistory);
+            requestList.Add(userContent);
 
             // 대화 기록 전체를 요청 데이터로 만들어서 JSON으로 변환
-            ChatRequest chatRequest = new ChatRequest { contents = chatHistory };
+            ChatRequest chatRequest = new ChatRequest { contents = requestList.ToArray() };
             string jsonData = JsonUtility.ToJson(chatRequest);
             byte[] jsonToSend = new System.Text.UTF8Encoding().GetBytes(jsonData);
 
@@ -613,8 +609,10 @@ namespace HJS
                     parts = new Part[] { new Part { text = reply } }
                 };
 
-                contentsList.Add(botContent);
-                chatHistory = contentsList.ToArray();
+                // HTTP 200 성공 시에만 이 줄에 도달
+                // 여기서 처음으로 공식 노트(chatHistory) 갱신
+                requestList.Add(botContent);
+                chatHistory = requestList.ToArray();
 
                 Debug.Log($"[GeminiManager] 응답: {reply}");
 
