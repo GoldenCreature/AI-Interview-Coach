@@ -13,6 +13,7 @@ namespace GoogleTextToSpeech.Scripts
 
         private Action<AudioClip> _audioClipReceived;
         private Action<BadRequestData> _errorReceived;
+        public bool IsPlaying => audioSource != null && audioSource.isPlaying;
 
         private void OnEnable()
         {
@@ -28,12 +29,23 @@ namespace GoogleTextToSpeech.Scripts
         }
 
         // -----------------------------------------------
-        // 이제 직접 호출 불필요 → 이벤트로 자동 실행됨
+        // 직접 호출 불필요 → 이벤트로 자동 실행됨
         // -----------------------------------------------
         public void SendTextToGoogle(string _text)
         {
-            _errorReceived = ErrorReceived; //+= 를 =로 수정
-            _audioClipReceived = AudioClipReceived; //+= 를 =로 수정
+            if(text_to_speech == null)
+            {
+                text_to_speech = FindObjectOfType<TextToSpeech>();
+                Debug.Log("[TTS] TextToSpeech 컴포넌트를 찾았습니다");
+            }
+                
+            if(text_to_speech == null)
+            {
+                Debug.LogError("[TTS] TextToSpeech 컴포넌트를 찾을 수 없습니다!");
+            }
+
+            _errorReceived = ErrorReceived; 
+            _audioClipReceived = AudioClipReceived; 
             text_to_speech.GetSpeechAudioFromGoogle(
                 _text, voice, _audioClipReceived, _errorReceived);
         }
