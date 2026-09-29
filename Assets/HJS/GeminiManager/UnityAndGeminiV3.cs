@@ -631,7 +631,7 @@ namespace HJS
                     InterviewManager.NotifyGeminiResponseReceived(cleanReply);
 
                     // TTS 출력이 끝날 시간을 고려해서 3초 후 종료
-                    StartCoroutine(EndInterviewAfterDelay(3f));
+                    StartCoroutine(EndInterviewAfterDelay());
                 }
                 else
                 {
@@ -649,9 +649,15 @@ namespace HJS
         // 면접 종료 지연 처리
         // TTS 출력이 끝날 시간을 고려해서 일정 시간 후 종료
         // -----------------------------------------------
-        private IEnumerator EndInterviewAfterDelay(float delay)
+        private IEnumerator EndInterviewAfterDelay()
         {
-            yield return new WaitForSeconds(delay);
+            var ttsManager = FindObjectOfType<TextToSpeechManager>();
+            if (ttsManager != null)
+            {
+                yield return new WaitUntil(() => !ttsManager.IsPlaying);
+                Debug.Log("[GeminiManager] TTS 재생 완료 확인");
+            }
+            yield return new WaitForSeconds(0.5f);
             Debug.Log("[GeminiManager] 면접 자동 종료");
             InterviewManager.Instance.EndInterview();
         }
