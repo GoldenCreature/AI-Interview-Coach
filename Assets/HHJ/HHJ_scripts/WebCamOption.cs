@@ -44,7 +44,7 @@ namespace WebCamOptionUI.Scripts
             }
 
             // 2. WebCamTexture 생성 및 재생
-            webCamTexture = new WebCamTexture(devices[0].name);
+            webCamTexture = new WebCamTexture(devices[0].name, 640, 480, 30);
             webCamTexture.Play();
 
             // 3. 텍스처 준비 대기 (최대 5초 타임아웃)
