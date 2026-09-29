@@ -666,7 +666,7 @@ namespace HJS
         // 종합 평가 요청
         // 면접 종료 이벤트 수신 시 자동 실행
         // -----------------------------------------------
-        private IEnumerator SendEvaluationRequest(InterviewResultData resultData)
+        private IEnumerator SendEvaluationRequest(InterviewResultData resultData, int retryCount = 0)
         {
             string url = $"{apiEndpoint}?key={ApiKey}";
 
@@ -742,12 +742,34 @@ namespace HJS
 
                     // 400: 잘못된 요청 (아무 문자나 입력한 경우)
                     // 403: API 키 인증 실패
+                    // 503: 서버 과부화 → 최대 3회 재시도 (2초, 4초, 8초)
                     if (www.responseCode == 400 || www.responseCode == 403)
                     {
                         Debug.LogWarning("[GeminiManager] 잘못된 API 키 → Result 씬 직접 이동");
                         GameManager.Instance.LoadResultScene();
                         yield break; 
                     }
+
+                    if (www.responseCode == 503 && retryCount < 3)
+                    {
+                        int nextRetry = retryCount + 1;
+                        float waitSeconds = Mathf.Pow(2, nextRetry);
+                        Debug.LogWarning(
+                            $"[GeminiManager] 평가 요청 서버 과부화 → " +
+                            $"{waitSeconds}초 후 재시도 ({nextRetry}/3)"
+                        );
+                        yield return new WaitForSeconds(waitSeconds);
+                        StartCoroutine(SendEvaluationRequest(resultData, nextRetry));
+                        yield break;
+                    }
+                    // 400, 403, 503 재시도 초과, 기타 모든 실패
+                    // → 평가 없이 Result 씬으로 강제 이동
+                    Debug.LogWarning(
+                        $"[GeminiManager] 평가 요청 최종 실패 (코드: {www.responseCode}) " +
+                        $"→ Result 씬 강제 이동"
+                    );
+                    InterviewManager.Instance.NotifyInterviewEnded();
+                    yield break;
                 }
                 else
                 {

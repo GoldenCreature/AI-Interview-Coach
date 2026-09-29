@@ -24,6 +24,9 @@ namespace GoogleSpeechToText.Scripts
 
         void Update()
         {
+            if (!InterviewManager.Instance.IsInterviewActive)
+                return;
+
             if (Input.GetKeyDown(SettingsManager.Instance.MicKey) && !recording)
             {
                 StartRecording();
