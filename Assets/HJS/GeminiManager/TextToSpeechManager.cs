@@ -42,6 +42,7 @@ namespace GoogleTextToSpeech.Scripts
             if(text_to_speech == null)
             {
                 Debug.LogError("[TTS] TextToSpeech 컴포넌트를 찾을 수 없습니다!");
+                return;
             }
 
             _errorReceived = ErrorReceived; 
@@ -57,6 +58,19 @@ namespace GoogleTextToSpeech.Scripts
 
         private void AudioClipReceived(AudioClip clip)
         {
+            if (audioSource == null)
+            {
+                var go = GameObject.Find("genSuit");
+                if (go != null)
+                    audioSource = go.GetComponent<AudioSource>();
+            }
+
+            if (audioSource == null)
+            {
+                Debug.LogError("[TTS] AudioSource를 찾을 수 없습니다!");
+                return;
+            }
+
             audioSource.Stop();
             audioSource.clip = clip;
             audioSource.Play();

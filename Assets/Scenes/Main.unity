@@ -224,7 +224,6 @@ Transform:
   - {fileID: 1446243393}
   - {fileID: 1002224770}
   - {fileID: 2370473076133121455}
-  - {fileID: 398369132}
   - {fileID: 56585776}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

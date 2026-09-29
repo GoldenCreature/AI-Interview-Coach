@@ -543,6 +543,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   csvLogger: {fileID: 1592531473}
   runner: {fileID: 1690676559}
+  enableLiveInspectorUpdate: 1
+  liveUpdateInterval: 0.5
+  enableAutoCalibration: 1
+  calibrationDuration: 3
+  minCalibrationFrames: 30
+  calibrationMaxYawDegrees: 15
+  imageWidth: 1280
+  imageHeight: 720
+  smileGain: 45
+  surpriseGain: 60
+  angryGain: 42
+  blinkThresholdRatio: 0.6
   neutralSmileRatio: 0.017
   neutralSurpriseRatio: 0.07
   neutralAngryRatio: 0.15
@@ -550,10 +562,11 @@ MonoBehaviour:
   neutralGazeVerticalRatio: 0.5
   gazeSensitivity: 18
   enableAngleGate: 1
-  maxYawRatio: 0.8
-  maxPitchRatio: 0.8
+  maxYawDegrees: 30
+  maxPitchDegrees: 25
+  neutralYawDegrees: 0
+  neutralPitchDegrees: 0
   isFaceTooAngled: 0
-  smoothingWindowSize: 30
   latestGrade: 0
   latestEvaluationSummary: 
   latestEvaluationDetail: 
@@ -1605,6 +1618,10 @@ PrefabInstance:
     - target: {fileID: 5050687909196068198, guid: b9055c7b7632b964e8814406903f1957, type: 3}
       propertyPath: m_Name
       value: PlayUI
+      objectReference: {fileID: 0}
+    - target: {fileID: 8085317499634537265, guid: b9055c7b7632b964e8814406903f1957, type: 3}
+      propertyPath: m_Color.a
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
