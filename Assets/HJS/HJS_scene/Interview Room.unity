@@ -543,6 +543,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   csvLogger: {fileID: 1592531473}
   runner: {fileID: 1690676559}
+  enableLiveInspectorUpdate: 1
+  liveUpdateInterval: 0.5
+  enableAutoCalibration: 1
+  calibrationDuration: 3
+  minCalibrationFrames: 30
+  calibrationMaxYawDegrees: 15
+  imageWidth: 1280
+  imageHeight: 720
+  smileGain: 45
+  surpriseGain: 60
+  angryGain: 42
+  blinkThresholdRatio: 0.6
   neutralSmileRatio: 0.017
   neutralSurpriseRatio: 0.07
   neutralAngryRatio: 0.15
@@ -550,10 +562,11 @@ MonoBehaviour:
   neutralGazeVerticalRatio: 0.5
   gazeSensitivity: 18
   enableAngleGate: 1
-  maxYawRatio: 0.8
-  maxPitchRatio: 0.8
+  maxYawDegrees: 30
+  maxPitchDegrees: 25
+  neutralYawDegrees: 0
+  neutralPitchDegrees: 0
   isFaceTooAngled: 0
-  smoothingWindowSize: 30
   latestGrade: 0
   latestEvaluationSummary: 
   latestEvaluationDetail: 
