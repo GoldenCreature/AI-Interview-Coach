@@ -202,6 +202,13 @@ namespace HJS
             OnInterviewEndRequested?.Invoke(_currentResultData);
         }
 
+        // Gemini 평가 없이 면접 상태만 종료 (API 키 없는 경우 등 특수 경로용)
+        public void ForceEndWithoutEvaluation()
+        {
+            IsInterviewActive = false;
+            Debug.Log("[InterviewManager] 면접 상태만 종료 (평가 없음)");
+        }
+
         // Gemini 평가 + DB 저장 완료 후 호출
         // UIManager.HandleInterviewEnded() 자동 실행
         public void NotifyInterviewEnded()
