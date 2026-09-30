@@ -630,7 +630,7 @@ namespace HJS
                     Debug.Log("[GeminiManager] 면접 종료 신호 감지");
                     InterviewManager.NotifyGeminiResponseReceived(cleanReply);
 
-                    // TTS 출력이 끝날 시간을 고려해서 3초 후 종료
+                    // TTS 출력이 끝나면 Result씬으로 전환
                     StartCoroutine(EndInterviewAfterDelay());
                 }
                 else
@@ -643,22 +643,45 @@ namespace HJS
 
             }
         }
-        
+
 
         // -----------------------------------------------
         // 면접 종료 지연 처리
         // TTS 출력이 끝날 시간을 고려해서 일정 시간 후 종료
         // -----------------------------------------------
+        // 면접 종료 신호를 받은 뒤, AI 마지막 멘트(TTS)가 끝나면 면접을 종료하는 코루틴
         private IEnumerator EndInterviewAfterDelay()
         {
+            // 씬에서 TTS 관리자를 찾는다 (없으면 null)
             var ttsManager = FindObjectOfType<TextToSpeechManager>();
+
             if (ttsManager != null)
             {
-                yield return new WaitUntil(() => !ttsManager.IsPlaying);
-                Debug.Log("[GeminiManager] TTS 재생 완료 확인");
+                // 지금까지 기다린 시간(초). 무한 대기를 막기 위한 타이머
+                float waited = 0f;
+
+                // IsBusy = "구글에 TTS 요청 중" 이거나 "소리 재생 중"
+                // 둘 중 하나라도 해당되고, 대기 시간이 30초 미만이면 계속 대기
+                // (기존 IsPlaying은 요청 중에는 false여서 바로 통과해버리는 문제가 있었음)
+                while (ttsManager.IsBusy && waited < 30f)
+                {
+                    // 직전 프레임 이후 흐른 시간(초)을 더해 실제 경과 시간을 추적
+                    waited += Time.deltaTime;
+
+                    // 한 프레임 쉬고 다음 프레임에 다시 검사
+                    yield return null;
+                }
+
+                // 정상 종료면 멘트 길이 정도, 30.0이면 타임아웃(TTS 요청 실패 의심)
+                Debug.Log("[GeminiManager] TTS 재생 완료 확인 (대기 " + waited.ToString("F1") + "초)");
             }
+
+            // 소리가 끝난 직후 바로 화면이 넘어가면 어색하므로 0.5초 대기
             yield return new WaitForSeconds(0.5f);
+
             Debug.Log("[GeminiManager] 면접 자동 종료");
+
+            // Result 씬 전환 
             InterviewManager.Instance.EndInterview();
         }
 
