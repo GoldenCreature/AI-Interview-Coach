@@ -66,6 +66,7 @@ namespace PlayUI.Scripts
             if (string.IsNullOrEmpty(SettingsManager.Instance.GeminiApiKey))
             {
                 Debug.LogWarning("[Play] API 키 없음 → Result 씬 직접 이동");
+                InterviewManager.Instance.ForceEndWithoutEvaluation(); // IsInterviewActive 면접중인지 여부를 false로 처리
                 GameManager.Instance.LoadResultScene();
                 return;
             }

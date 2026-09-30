@@ -24,6 +24,9 @@ namespace GoogleSpeechToText.Scripts
 
         void Update()
         {
+            if (!InterviewManager.Instance.IsInterviewActive) // 면접이 활성화 중이 아니라면
+                return;                                       // 즉 InterViewRoom 씬이 아닐때 마이크 활성화 금지
+
             if (Input.GetKeyDown(SettingsManager.Instance.MicKey) && !recording)
             {
                 StartRecording();

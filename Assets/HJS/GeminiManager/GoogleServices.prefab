@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 5261967304391191033}
   - component: {fileID: 3532890060448399973}
   - component: {fileID: 6566598603892313596}
-  - component: {fileID: 313305616996152584}
   m_Layer: 0
   m_Name: GoogleServices
   m_TagString: Untagged
@@ -61,32 +60,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 77359e26ede82b64f92b9cc7b676ccc0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &313305616996152584
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6080031855515323296}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1fe8070f803709048b60dea87546646b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  fillerWords:
-  - "\uC5B4"
-  - "\uC74C"
-  - "\uC544"
-  - "\uC800\uAE30"
-  - "\uADF8"
-  - "\uC774\uC81C"
-  - "\uBB50"
-  - "\uC880"
-  - "\uC77C\uB2E8"
-  - "\uC57D\uAC04"
-  - "\uADF8\uB0E5"
-  - "\uB9C9"
-  - "\uB418\uAC8C"
-  - "\uBB54\uAC00"
-  - "\uC9C4\uC9DC"
-  - "\uC194\uC9C1\uD788"
