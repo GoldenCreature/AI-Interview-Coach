@@ -545,6 +545,7 @@ MonoBehaviour:
   runner: {fileID: 1690676559}
   enableLiveInspectorUpdate: 1
   liveUpdateInterval: 0.5
+  minSecondsForLiveEval: 2
   enableAutoCalibration: 1
   calibrationDuration: 3
   minCalibrationFrames: 30
