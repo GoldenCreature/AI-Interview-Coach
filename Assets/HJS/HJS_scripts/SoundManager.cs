@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -8,16 +8,16 @@ namespace HJS
 {
     public class SoundManager : SingletonBase<SoundManager>
     {
-        [Header("BGM ¼³Á¤")]
+        [Header("BGM ì„¤ì •")]
         [SerializeField] private AudioSource bgmSource;
         [SerializeField] private AudioClip mainBGM;
         [SerializeField] private float bgmFadeTime = 0.5f;
 
-        [Header("SFX ¼³Á¤")]
+        [Header("SFX ì„¤ì •")]
         [SerializeField] private AudioSource sfxSource;
         [SerializeField] private AudioClip buttonClickSFX;
 
-        [Header("º¼·ı ¼³Á¤")]
+        [Header("ë³¼ë¥¨ ì„¤ì •")]
         [Range(0f, 1f)]
         [SerializeField] private float bgmVolume = 0.5f;
         [Range(0f, 1f)]
@@ -29,7 +29,7 @@ namespace HJS
         protected override void Awake()
         {
             base.Awake();
-            Debug.Log("[SoundManager] ÃÊ±âÈ­ ¿Ï·á");
+            Debug.Log("[SoundManager] ì´ˆê¸°í™” ì™„ë£Œ");
         }
 
         private void OnEnable()
@@ -43,14 +43,14 @@ namespace HJS
         }
 
         // -----------------------------------------------
-        // ¾À ÀüÈ¯ ½Ã ÀÚµ¿ È£Ãâ
+        // ì”¬ ì „í™˜ ì‹œ ìë™ í˜¸ì¶œ
         // -----------------------------------------------
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             switch (scene.name)
             {
                 case GameManager.SCENE_TITLE:
-                    // ¸ŞÀÎ ¾À: Ç×»ó Ã³À½ºÎÅÍ Àç»ı
+                    // ë©”ì¸ ì”¬: í•­ìƒ ì²˜ìŒë¶€í„° ì¬ìƒ
                     if (!bgmSource.isPlaying)
                         PlayBGMFromStart(mainBGM);
                     break;
@@ -58,30 +58,30 @@ namespace HJS
                 case GameManager.SCENE_INTERVIEW_SETUP:
                 case GameManager.SCENE_SETTING:
                 case GameManager.SCENE_FEEDBACK:
-                    // ÀÌ¾î¼­ Àç»ı
-                    // BGMÀÌ ²¨Á®ÀÖÀ¸¸é Ã³À½ºÎÅÍ Àç»ı
+                    // ì´ì–´ì„œ ì¬ìƒ
+                    // BGMì´ êº¼ì ¸ìˆìœ¼ë©´ ì²˜ìŒë¶€í„° ì¬ìƒ
                     if (!bgmSource.isPlaying)
                         PlayBGMFromStart(mainBGM);
                     break;
 
                 case GameManager.SCENE_LOADING:
-                    // ÆäÀÌµå ¾Æ¿ô
+                    // í˜ì´ë“œ ì•„ì›ƒ
                     StartCoroutine(FadeOutBGM(bgmFadeTime));
                     break;
 
                 case GameManager.SCENE_INTERVIEW:
                 case GameManager.SCENE_RESULT:
-                    // ¸éÁ¢/°á°ú ¾À: BGM ¿ÏÀü ÁßÁö
+                    // ë©´ì ‘/ê²°ê³¼ ì”¬: BGM ì™„ì „ ì¤‘ì§€
                     StopBGM();
                     break;
             }
-            // ÇÑ ÇÁ·¹ÀÓ ÈÄ UI¿ä¼Ò µî·Ï
-            // ¾À ÃÊ±âÈ­ ¿Ï·á ÈÄ µî·Ï
+            // í•œ í”„ë ˆì„ í›„ UIìš”ì†Œ ë“±ë¡
+            // ì”¬ ì´ˆê¸°í™” ì™„ë£Œ í›„ ë“±ë¡
             StartCoroutine(RegisterUISoundsDelayed());
         }
 
         // -----------------------------------------------
-        // BGM Ã³À½ºÎÅÍ Àç»ı
+        // BGM ì²˜ìŒë¶€í„° ì¬ìƒ
         // -----------------------------------------------
         public void PlayBGMFromStart(AudioClip clip)
         {
@@ -95,7 +95,7 @@ namespace HJS
         }
 
         // -----------------------------------------------
-        // BGM ¿ÏÀü ÁßÁö
+        // BGM ì™„ì „ ì¤‘ì§€
         // -----------------------------------------------
         public void StopBGM()
         {
@@ -103,8 +103,8 @@ namespace HJS
         }
 
         // -----------------------------------------------
-        // BGM ÆäÀÌµå ¾Æ¿ô
-        // Loading1 ¾À ÁøÀÔ ½Ã È£Ãâ
+        // BGM í˜ì´ë“œ ì•„ì›ƒ
+        // Loading1 ì”¬ ì§„ì… ì‹œ í˜¸ì¶œ
         // -----------------------------------------------
         private IEnumerator FadeOutBGM(float fadeTime)
         {
@@ -123,9 +123,9 @@ namespace HJS
         }
 
         // -----------------------------------------------
-        // UI Å¬¸¯ È¿°úÀ½ Àç»ı
-        // ¿ø·¡ ¹æ½Ä : UI ¹öÆ° OnClick ÀÌº¥Æ®¿¡ ¿¬°á
-        // ÇöÀç ¹æ½Ä : RegisterUISoundsDelayed()¸¦ ÅëÇØ ÀÚµ¿µî·ÏÁß
+        // UI í´ë¦­ íš¨ê³¼ìŒ ì¬ìƒ
+        // ì›ë˜ ë°©ì‹ : UI ë²„íŠ¼ OnClick ì´ë²¤íŠ¸ì— ì—°ê²°
+        // í˜„ì¬ ë°©ì‹ : RegisterUISoundsDelayed()ë¥¼ í†µí•´ ìë™ë“±ë¡ì¤‘
         // -----------------------------------------------
         public void PlayButtonClick()
         {
@@ -135,8 +135,8 @@ namespace HJS
         }
 
         // -----------------------------------------------
-        // BGM º¼·ı ¼³Á¤
-        // Setting ¾À¿¡¼­ ½½¶óÀÌ´õ·Î Á¶Àı °¡´É
+        // BGM ë³¼ë¥¨ ì„¤ì •
+        // Setting ì”¬ì—ì„œ ìŠ¬ë¼ì´ë”ë¡œ ì¡°ì ˆ ê°€ëŠ¥
         // -----------------------------------------------
         public void SetBGMVolume(float volume)
         {
@@ -145,8 +145,8 @@ namespace HJS
         }
 
         // -----------------------------------------------
-        // SFX º¼·ı ¼³Á¤
-        // Setting ¾À¿¡¼­ ½½¶óÀÌ´õ·Î Á¶Àı °¡´É
+        // SFX ë³¼ë¥¨ ì„¤ì •
+        // Setting ì”¬ì—ì„œ ìŠ¬ë¼ì´ë”ë¡œ ì¡°ì ˆ ê°€ëŠ¥
         // -----------------------------------------------
         public void SetSFXVolume(float volume)
         {
@@ -154,8 +154,8 @@ namespace HJS
         }
 
         // -----------------------------------------------
-        // ¾À ·Îµå ½Ã ¸ğµç UI¿ä¼Ò¿¡ Å¬¸¯À½ ÀÚµ¿ µî·Ï
-        // ¹öÆ°¸¶´Ù OnClick ¿¬°á ºÒÇÊ¿ä
+        // ì”¬ ë¡œë“œ ì‹œ ëª¨ë“  UIìš”ì†Œì— í´ë¦­ìŒ ìë™ ë“±ë¡
+        // ë²„íŠ¼ë§ˆë‹¤ OnClick ì—°ê²° ë¶ˆí•„ìš”
         // -----------------------------------------------
         private IEnumerator RegisterUISoundsDelayed()
         {
@@ -163,26 +163,26 @@ namespace HJS
 
             if (buttonClickSFX == null) yield break;
 
-            // Button µî·Ï
+            // Button ë“±ë¡
             Button[] buttons = FindObjectsOfType<Button>(true);
             foreach (Button btn in buttons)
                 btn.onClick.AddListener(PlayButtonClick);
 
-            // Toggle µî·Ï (¼±ÅÃ ½Ã¿¡¸¸ ¼Ò¸®)
+            // Toggle ë“±ë¡ (ì„ íƒ ì‹œì—ë§Œ ì†Œë¦¬)
             Toggle[] toggles = FindObjectsOfType<Toggle>(true);
             foreach (Toggle tog in toggles)
                 tog.onValueChanged.AddListener(
                     isOn => { if (isOn) PlayButtonClick(); });
 
-            // TMP_Dropdown µî·Ï (Ç×¸ñ ¼±ÅÃ ½Ã ¼Ò¸®)
+            // TMP_Dropdown ë“±ë¡ (í•­ëª© ì„ íƒ ì‹œ ì†Œë¦¬)
             TMP_Dropdown[] dropdowns = FindObjectsOfType<TMP_Dropdown>(true);
             foreach (TMP_Dropdown dropdown in dropdowns)
                 dropdown.onValueChanged.AddListener(
                     _ => PlayButtonClick());
 
-            Debug.Log($"[SoundManager] ¹öÆ° {buttons.Length}°³ " +
-                      $"Åä±Û {toggles.Length}°³ " +
-                      $"µå·Ó´Ù¿î {dropdowns.Length}°³ Å¬¸¯À½ µî·Ï ¿Ï·á");
+            Debug.Log($"[SoundManager] ë²„íŠ¼ {buttons.Length}ê°œ " +
+                      $"í† ê¸€ {toggles.Length}ê°œ " +
+                      $"ë“œë¡­ë‹¤ìš´ {dropdowns.Length}ê°œ í´ë¦­ìŒ ë“±ë¡ ì™„ë£Œ");
         }
     }
 }
