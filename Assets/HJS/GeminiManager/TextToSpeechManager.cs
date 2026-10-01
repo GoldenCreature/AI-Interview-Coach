@@ -13,7 +13,10 @@ namespace GoogleTextToSpeech.Scripts
 
         private Action<AudioClip> _audioClipReceived;
         private Action<BadRequestData> _errorReceived;
+        private bool _isRequestPending = false;   // 구글에 요청했고 아직 응답을 못 받은 상태
+
         public bool IsPlaying => audioSource != null && audioSource.isPlaying;
+        public bool IsBusy => _isRequestPending || IsPlaying;   // 요청 중이거나 재생 중
 
         private void OnEnable()
         {
@@ -46,18 +49,22 @@ namespace GoogleTextToSpeech.Scripts
             }
 
             _errorReceived = ErrorReceived; 
-            _audioClipReceived = AudioClipReceived; 
+            _audioClipReceived = AudioClipReceived;
+            _isRequestPending = true;
             text_to_speech.GetSpeechAudioFromGoogle(
                 _text, voice, _audioClipReceived, _errorReceived);
         }
 
         private void ErrorReceived(BadRequestData badRequestData)
         {
+            _isRequestPending = false;
             Debug.Log($"[TTS] 오류 {badRequestData.error.code}: {badRequestData.error.message}");
         }
 
         private void AudioClipReceived(AudioClip clip)
         {
+            _isRequestPending = false;
+
             if (audioSource == null)
             {
                 var go = GameObject.Find("genSuit");
@@ -73,7 +80,7 @@ namespace GoogleTextToSpeech.Scripts
 
             audioSource.Stop();
             audioSource.clip = clip;
-            audioSource.Play();
+            audioSource.Play(); 
         }
     }
 }
