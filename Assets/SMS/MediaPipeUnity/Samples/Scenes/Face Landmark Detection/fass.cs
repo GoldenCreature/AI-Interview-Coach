@@ -21,6 +21,10 @@ using InterviewDb; // InterviewDbManager 접근용 네임스페이스
 /// 8) 미소 지표를 "입 벌림"이 아닌 입꼬리 너비 + 입꼬리 상승량으로 교체
 /// 9) 깜빡임 프레임을 놀람/시선 누적에서 제외
 /// 10) Yaw/Pitch를 3D 얼굴 축(귀-귀, 이마-턱)으로 각도(도)로 추정하고, 캘리브레이션 때의 자세를 0°로 기준화
+///
+/// [표시값 초기화]
+/// 11) 씬 진입(OnEnable) / 캘리브레이션 (재)시작 시 latest* 표시값을 모두 0/빈 값으로 초기화
+///     → 캘리브레이션 3초 동안 이전 점수나 인스펙터에 저장된 값이 화면에 남지 않음
 /// </summary>
 public class fass : MonoBehaviour
 {
@@ -44,8 +48,13 @@ public class fass : MonoBehaviour
 
     [Tooltip("latest* 필드 갱신 주기(초). 값이 클수록 CPU/GC 부담이 줄어듭니다.")]
     [Min(0.05f)]
-    public float liveUpdateInterval = 0.5f;
 
+    public float liveUpdateInterval = 0.5f;
+    [Tooltip("캘리브레이션이 끝난 뒤 이 시간(초)이 지나기 전에는 실시간 점수를 표시하지 않습니다. (프레임 수가 아닌 시간 기준)")]
+    [Min(0f)]
+    public float minSecondsForLiveEval = 2f;
+
+    private float liveEvalReadyTime;
     private float nextLiveUpdateTime;
     private volatile bool hasNewFrameSinceLastEval;
 
@@ -207,7 +216,7 @@ public class fass : MonoBehaviour
     public int AngryCount { get { lock (statsLock) return angryAcc.count; } }
 
     /// <summary>
-    /// 모든 누적 통계를 초기화합니다. 새 면접이 시작될 때 호출됩니다.
+    /// 모든 누적 통계와 UI 표시값(latest*)을 초기화합니다. 새 면접이 시작될 때 호출됩니다. (메인 스레드에서 호출)
     /// </summary>
     public void ResetStatistics()
     {
@@ -223,6 +232,28 @@ public class fass : MonoBehaviour
         }
         warnedNoIris = false;
         hasNewFrameSinceLastEval = false;
+
+        ClearLatestDisplay();
+    }
+
+    /// <summary>
+    /// UI/인스펙터에 표시되는 latest* 값을 모두 0/빈 값으로 되돌립니다. (메인 스레드에서 호출)
+    /// 캘리브레이션 도중에는 Update의 평가가 실행되지 않으므로, 이 값이 0으로 유지됩니다.
+    /// </summary>
+    private void ClearLatestDisplay()
+    {
+        // default(EvaluationArea)는 areaName이 null이라 테이블 UI에서 영역명이 비어 보일 수 있어 이름은 채워 둡니다.
+        latestFaceExpressionArea = new EvaluationArea { areaName = "표정", score = 0, result = "", improvement = "" };
+        latestGazeArea = new EvaluationArea { areaName = "시선(눈동자)", score = 0, result = "", improvement = "" };
+        latestAngleArea = new EvaluationArea { areaName = "얼굴 각도", score = 0, result = "", improvement = "" };
+
+        latestAttitudeScore = 0;
+        latestEvaluationScore = 0;
+        latestGrade = ExpressionGrade.Average;
+
+        latestEvaluationSummary = "";
+        latestEvaluationDetail = "";
+        latestImprovementNotes = "";
     }
 
     // ─────────────────────────────────────────────────────────
@@ -275,16 +306,21 @@ public class fass : MonoBehaviour
 
     void OnEnable()
     {
-        // 새 면접 시작 시 이전 데이터가 섞이지 않도록 초기화
+        // 새 면접 시작 시 이전 데이터가 섞이지 않도록 초기화 (표시값 latest*도 함께 0으로)
         ResetStatistics();
         nextLiveUpdateTime = 0f;
         RefreshImageAspect();
 
         // 면접 시작 직후 3초간 기준값 자동 측정
         if (enableAutoCalibration)
+        {
             StartCalibration();
+        }
         else
+        {
             calibrating = false;
+            liveEvalReadyTime = Time.unscaledTime + minSecondsForLiveEval;
+        }
 
         if (runner != null)
             runner.OnResultOutput += HandleResult;
@@ -322,11 +358,14 @@ public class fass : MonoBehaviour
         if (calibrationCompletedFlag)
         {
             calibrationCompletedFlag = false;
+            liveEvalReadyTime = Time.unscaledTime + minSecondsForLiveEval; // ← 추가: 완료 시점부터 대기 시작
             Debug.Log($"[fass] 캘리브레이션 완료 → 무표정(미소 {neutralSmileRatio:F3}, 눈 {neutralSurpriseRatio:F3}, 눈썹 {neutralAngryRatio:F3}) / 정면 응시(가로 {neutralGazeHorizontalRatio:F3}, 세로 {neutralGazeVerticalRatio:F3}) / 정면 자세(Yaw {neutralYawDegrees:F1}°, Pitch {neutralPitchDegrees:F1}°)");
             OnCalibrationCompleted?.Invoke();
         }
 
         if (!enableLiveInspectorUpdate) return;
+        if (calibrating) return; // 캘리브레이션 중에는 표시값을 갱신하지 않음 (0 유지)
+        if (Time.unscaledTime < liveEvalReadyTime) return; // ← 추가: 캘리브레이션 후 대기 시간
         if (Time.unscaledTime < nextLiveUpdateTime) return;
         if (!hasNewFrameSinceLastEval) return; // 새 데이터가 없으면 재평가 불필요
 
@@ -534,6 +573,10 @@ public class fass : MonoBehaviour
             calGazeCount = 0;
         }
 
+        // 재측정 시에도 이전 점수가 화면에 남지 않도록 표시값을 0으로 되돌림
+        ClearLatestDisplay();
+        hasNewFrameSinceLastEval = false;
+        liveEvalReadyTime = float.MaxValue;
         calibrationTimer.Reset();
         calibrated = false;
         calibrationCompletedFlag = false;
