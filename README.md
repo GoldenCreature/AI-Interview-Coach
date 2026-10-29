@@ -27,9 +27,8 @@
 4. [기술 스택](#기술-스택)
 5. [설치 및 환경 설정](#설치-및-환경-설정)
 6. [API 키 설정](#api-키-설정)
-7. [프로젝트 구조](#프로젝트-구조)
-8. [팀원](#팀원)
-9. [개발 규칙](#개발-규칙)
+7. [팀원](#팀원)
+8. [개발 규칙](#개발-규칙)
 
 ---
 
@@ -41,32 +40,48 @@
 | AI 면접관 | 대화 맥락에 맞는 질문 생성 및 면접 진행 | Gemini 3.5 Flash-Lite |
 | 음성 합성 (TTS) | AI 면접관의 답변을 음성으로 출력 | Google Cloud TTS (ko-KR-Wavenet-C) |
 | 표정 분석 | 표정 · 시선 · 얼굴 각도를 측정해 태도 점수 산출 | MediaPipe FaceLandmarker |
-| 발화 습관 감지 | 간투사(어, 음, 아 등)를 자동으로 감지해 집계 | FillerWordDetector (자체 구현) |
+| 발화 습관 감지 | 간투사(어, 음, 아 등)를 자동으로 감지해 집계 | FillerWordDetector |
 | 면접 결과 리포트 | 음성 · 내용 · 태도 영역별 점수와 개선 피드백 제공 | SQLite, View_Session_Report |
-| 기록 관리 | 면접 기록 저장 · 조회 · 삭제 | SQLite (WAL 모드) |
+| 기록 관리 | 면접 기록 저장 · 조회 · 삭제 | SQLite |
 
 ---
 
 ## 시스템 아키텍처
 
 ```mermaid
-flowchart LR
+flowchart TB
+    Mic(["마이크 입력<br/>Push-Talk"])
+    Cam(["카메라 입력<br/>웹캠"])
+    Spk(["스피커 출력<br/>AI 음성"])
+
     subgraph Unity["Unity Application"]
-        direction LR
-        Mic(["마이크 입력<br/>Push-Talk"]) --> STT["SpeechToTextManager.cs"]
-        STT --> GEM["UnityAndGeminiV3.cs<br/>질문 · 평가"]
-        GEM --> IM["InterviewManager.cs<br/>이벤트 허브"]
-        IM --> TTS["TextToSpeechManager.cs"]
-        TTS --> Spk(["스피커 출력<br/>AI 음성"])
-        Cam(["카메라 입력<br/>웹캠"]) --> MP["MediaPipe<br/>FaceLandmarker"]
-        MP --> DBM["InterviewDbManager.cs"]
-        IM --> DBM
-        DBM --> SQL[("SQLite DB<br/>WAL 모드")]
+        direction TB
+        MP["MediaPipe<br/>FaceLandmarker"]
+        STT["SpeechToTextManager.cs"]
+        IM{{"InterviewManager.cs<br/>이벤트 허브"}}
+        GEM["UnityAndGeminiV3.cs<br/>질문 · 평가"]
+        TTS["TextToSpeechManager.cs"]
+        DBM["InterviewDbManager.cs"]
     end
 
-    STT -.-> GSTT["Google Cloud STT"]
-    GEM -.-> GAPI["Gemini API"]
-    TTS -.-> GTTS["Google Cloud TTS"]
+    GSTT["Google Cloud STT"]
+    GAPI["Gemini API"]
+    GTTS["Google Cloud TTS"]
+    SQL[("SQLite DB")]
+
+    Mic --> STT
+    STT <-->|"HTTPS"| GSTT
+    STT -->|"음성 인식 결과"| IM
+    IM -->|"사용자 답변"| GEM
+    GEM <-->|"HTTPS"| GAPI
+    GEM -->|"AI 답변 · 평가 결과"| IM
+    IM -->|"AI 답변"| TTS
+    TTS <-->|"HTTPS"| GTTS
+    TTS --> Spk
+    Cam --> MP
+    MP -->|"태도 점수"| DBM
+    IM -->|"면접 결과"| DBM
+    DBM --> SQL
 ```
 
 ### 코어 설계 패턴
@@ -117,9 +132,7 @@ flowchart LR
 |------|------|
 | Unity | 2022.3.21f1 LTS |
 | 렌더 파이프라인 | Built-in Render Pipeline |
-| 타겟 플랫폼 | Windows Standalone (x64) |
-| 스크립팅 런타임 | .NET Standard 2.1 |
-| C# | 9.0 |
+| 타겟 플랫폼 | Windows Standalone |
 
 ### 외부 패키지
 
@@ -141,11 +154,18 @@ flowchart LR
 
 ### 데이터베이스
 
-| 이름 | 종류 | 주요 컬럼 |
-|------|------|-----------|
-| Interview_Session |  테이블  | session_id, job_category, session_status, end_time, duration_seconds, conversation_log |
-| Session_Result |  테이블  | session_id, score_audio, score_content, score_attitude, total_score, eval_audio_text, advice_audio_text, eval_content_text, advice_content_text, summary_text, advice_text |
-| View_Session_Report | 뷰 | 위 두 테이블을 LEFT JOIN한 결과 조회용 |
+SQLite를 사용하며, 별도 서버 없이 PC의 파일 하나에 저장합니다.
+
+| 이름 | 구분 | 설명 |
+|------|------|------|
+| Interview_Session | 테이블 | 면접 세션 기본 정보 |
+| Session_Result | 테이블 | 영역별 점수와 피드백 |
+| View_Session_Report | 뷰 | 위 두 테이블을 LEFT JOIN한 조회용 뷰 |
+
+주요 컬럼은 다음과 같습니다.
+
+- `Interview_Session`: `session_id`, `job_category`, `session_status`, `end_time`, `duration_seconds`, `conversation_log`
+- `Session_Result`: `session_id`, `score_audio`, `score_content`, `score_attitude`, `total_score`, `eval_audio_text`, `advice_audio_text`, `eval_content_text`, `advice_content_text`, `summary_text`, `advice_text`
 
 ---
 
@@ -214,42 +234,6 @@ Setting 씬의 **마이크 선택** 드롭다운에서 사용할 마이크를 �
 
 ---
 
-## 프로젝트 구조
-
-```
-Assets/
-├── HJS/                              한종수: AI 파이프라인
-│   ├── GeminiManager/
-│   │   └── UnityAndGeminiV3.cs       Gemini 통신, 평가 파싱, 503 재시도
-│   ├── HJS_scripts/
-│   │   ├── SpeechToTextManager.cs
-│   │   ├── TextToSpeechManager.cs
-│   │   ├── FillerWordDetector.cs     간투사 감지
-│   │   ├── SoundManager.cs           BGM / 효과음 싱글턴
-│   │   ├── SettingsManager.cs        API 키 메모리 관리
-│   │   └── AudioConverter.cs
-│   ├── InterviewManager.cs           이벤트 허브
-│   ├── InterviewResultSaver.cs       DB 저장 통합
-│   └── InterviewMuteController.cs
-│
-├── SMS/                              신모세: 표정 분석
-│   └── MediaPipeUnity/
-│       └── fass.cs                   얼굴 랜드마크 → 태도 점수
-│
-├── HHJ/                              한효준: UI
-│
-├── LJH/                              이재혁: SQLite DB
-│   └── InterviewDb/
-│       ├── InterviewDbManager.cs     DB CRUD, 캐시, 스레드 안전
-│       ├── SchemaBootstrapHardened.cs  DDL, 트리거
-│       └── Models/
-│
-├── Scenes/                           씬 파일
-└── LocalPackages/                    MediaPipe tgz (Git 미포함)
-```
-
----
-
 ## 팀원
 
 | 이름 | 역할 | 담당 영역 |
@@ -281,12 +265,6 @@ Assets/
 | Docs | 문서 수정 |
 | Chore | 빌드, 패키지 등 기타 |
 
-```
-Feat(HJS): Gemini 503 에러 지수 백오프 재시도 로직 추가
-Fix(SMS): SaveToDatabase 파라미터 float→int 타입 불일치 수정
-Refactor(LJH): InterviewDbManager ExecuteSafe 메인스레드 즉시 실행 보장
-```
-
 </details>
 
 <details>
@@ -295,9 +273,17 @@ Refactor(LJH): InterviewDbManager ExecuteSafe 메인스레드 즉시 실행 보�
 <br/>
 
 - `main` 브랜치는 PR로만 병합합니다. 직접 push는 금지입니다.
-- 작업 브랜치 이름: `feat/작업명/이니셜` (예: `feat/gemini-retry/HJS`, `feat/result-ui/HHJ`)
+- 작업 브랜치 이름: `타입/작업명/이니셜` (타입은 `feat`, `fix`, `refactor` 등)
 - `main`에 Branch Protection을 적용해, PR 필수 및 1명 이상의 리뷰 승인이 필요합니다.
 - 병합이 끝난 작업 브랜치는 삭제합니다.
+
+브랜치 이름 예시:
+
+```
+feat/gemini-503-retry/HJS
+fix/save-to-database-type/SMS
+refactor/db-execute-safe-main-thread/LJH
+```
 
 </details>
 
@@ -319,5 +305,7 @@ Refactor(LJH): InterviewDbManager ExecuteSafe 메인스레드 즉시 실행 보�
 <div align="center">
 
 캡스톤 프로젝트 2조 · 2026
+
+</div>
 
 </div>
